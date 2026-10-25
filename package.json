@@ -1,0 +1,15 @@
+{
+  "name": "motorcycle-mayhem-android",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:android-web": "node scripts/build-android.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/cli": "^7.4.0",
+    "three": "0.160.1"
+  }
+}
