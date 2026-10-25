@@ -3,6 +3,9 @@
   "appName": "Motorcycle Mayhem",
   "webDir": "www",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": [
+      "motorcycle-mayhem.vercel.app"
+    ]
   }
 }
