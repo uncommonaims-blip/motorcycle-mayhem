@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One bounded AI improvement pass. Runs only on the bot branch."""
-import json, os, pathlib, subprocess, urllib.request
+import json, os, pathlib, subprocess, urllib.request, urllib.error, time
 p=pathlib.Path("index.html")
 source=p.read_text()
 prompt="""You are improving a mobile Three.js motorcycle arcade game.
@@ -13,8 +13,28 @@ Current index.html:
 """+source
 payload=json.dumps({"model":"openai/gpt-4.1","messages":[{"role":"user","content":prompt}],"temperature":0.3,"max_tokens":3000}).encode()
 req=urllib.request.Request("https://models.github.ai/inference/chat/completions",data=payload,headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Content-Type":"application/json","Accept":"application/vnd.github+json"},method="POST")
-with urllib.request.urlopen(req,timeout=90) as response:
-    data=json.load(response)
+data=None
+for attempt in range(3):
+    try:
+        with urllib.request.urlopen(req,timeout=90) as response:
+            raw=response.read()
+            print(f"GitHub Models HTTP {response.status}; response bytes: {len(raw)}",flush=True)
+            if not raw.strip():
+                raise ValueError("GitHub Models returned an empty HTTP response")
+            data=json.loads(raw)
+            if not isinstance(data,dict) or not data.get("choices"):
+                raise ValueError("GitHub Models returned no completion choices: "+str(data)[:500])
+            break
+    except urllib.error.HTTPError as exc:
+        body=exc.read().decode("utf-8",errors="replace")
+        print(f"GitHub Models HTTP {exc.code}: {body[:800]}",flush=True)
+        if exc.code not in (429,500,502,503,504) or attempt==2:
+            raise
+    except (ValueError,json.JSONDecodeError) as exc:
+        print(f"GitHub Models invalid response: {exc}",flush=True)
+        if attempt==2:
+            raise
+    time.sleep(3*(attempt+1))
 diff=data["choices"][0]["message"]["content"].strip()
 if diff.startswith("```"):
     diff="\n".join(diff.splitlines()[1:-1])
