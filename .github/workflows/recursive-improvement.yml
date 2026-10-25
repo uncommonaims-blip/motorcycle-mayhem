@@ -1,4 +1,5 @@
 name: Recursive game improvement
+# Restart run after GitHub Models response diagnostics fix
 on:
   push:
     branches: [main]
