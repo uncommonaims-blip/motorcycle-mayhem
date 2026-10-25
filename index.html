@@ -178,9 +178,8 @@ function tick(){requestAnimationFrame(tick);const dt=Math.min(.045,clock.getDelt
 const notice=t=>{msg.textContent=t;msg.style.display='block';clearTimeout(hide);hide=setTimeout(()=>msg.style.display='none',6500)};
 btn.addEventListener('click',async()=>{btn.disabled=true;btn.textContent='CHECKING…';try{
 const u=new URL('https://motorcycle-mayhem.vercel.app/');u.searchParams.set('game_update',String(Date.now()));
-const response=await fetch(u.toString(),{cache:'no-store',mode:'cors'});if(!response.ok)throw Error('Server '+response.status);
-const html=await response.text();if(!html.includes('Motorcycle Mayhem'))throw Error('Unexpected update response');
-notice('Loading latest published game…');location.replace(u.toString());
+if(!navigator.onLine)throw Error('No internet connection');
+notice('Opening the latest published game…');location.assign(u.toString());
 }catch(e){notice('Unable to check for updates. Your installed game still works offline. '+e.message)}
 finally{btn.disabled=false;btn.textContent='↻ UPDATE GAME'}})})();
 </script></body></html>
