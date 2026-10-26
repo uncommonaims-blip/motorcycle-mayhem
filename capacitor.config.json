@@ -4,7 +4,6 @@
   "webDir": "www",
   "server": {
     "androidScheme": "https",
-    "url": "https://uncommonaims-blip.github.io/motorcycle-mayhem/",
     "allowNavigation": [
       "uncommonaims-blip.github.io"
     ]
