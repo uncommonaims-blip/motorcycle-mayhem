@@ -248,7 +248,7 @@ function startCountrySection(){
    for(let z=-94;z<=94;z+=17){for(const edge of [-1,1]){const x=center+edge*7;cube(.17,1.5,.17,fenceMat,x,.75,z,group);cube(.12,.13,17,fenceMat,x,1.12,z,group)}}
    for(let i=0;i<16;i++){const type=i%7===0?'bull':i%3===0?'sheep':'cow';hazards.push(farmAnimal(type,center+(Math.random()-.5)*10,-92+i*12,group))}
  }else if(kind==='singletrack'){
-   for(let i=0;i<24;i++){const z=-100+i*9,x=center+(Math.random()-.5)*9;if(i%4===0){cube(1.2,.7,1.1,material(0x77726b),x,.35,z,group);hazards.push({g:{position:{x,z}},type:'rock',active:true})}else{cube(.65,3,.65,material(0x715033),x,1.5,z,group);const crown=new T.Mesh(new T.ConeGeometry(1.6,4,6),material(0x2c693b));crown.position.set(x,4.8,z);group.add(crown)}}}
+   for(let i=0;i<24;i++){const z=-100+i*9,x=center+(Math.random()-.5)*9;if(i%4===0){cube(1.2,.7,1.1,material(0x77726b),x,.35,z,group);hazards.push({g:{position:{x,z}},type:'rock',active:true})}else{cube(.65,3,.65,material(0x715033),x,1.5,z,group);const crown=new T.Mesh(new T.ConeGeometry(1.6,4,6),material(0x2c693b));crown.position.set(x,4.8,z);group.add(crown)}}
  }else{
    for(let i=0;i<17;i++){const z=-98+i*12,x=center+(Math.random()-.5)*7;cube(.45,1.4,.45,coneMat,x,.7,z,group);hazards.push({g:{position:{x,z}},type:'cone',active:true})}
    for(let i=0;i<5;i++)cube(3,.8,1.2,material(0xf1b32b),center+(i%2?3:-3),.4,-75+i*34,group);
