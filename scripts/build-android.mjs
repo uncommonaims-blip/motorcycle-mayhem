@@ -7,5 +7,5 @@ html=html.replace(remote,'./vendor/three.module.js');
 await writeFile('www/index.html',html);
 await copyFile('node_modules/three/build/three.module.js','www/vendor/three.module.js');
 await mkdir('www/assets',{recursive:true});
-try{await access('assets/moto-funk.mp3');await copyFile('assets/moto-funk.mp3','www/assets/moto-funk.mp3');console.log('Moto Funk bundled into Android assets')}catch{console.warn('Moto Funk missing: add assets/moto-funk.mp3 to bundle the soundtrack')}
+for(const track of ['moto-funk.mp3','hot-pursuit.mp3']){let source;for(const candidate of ['assets/'+track,track]){try{await access(candidate);source=candidate;break}catch{}}if(!source)throw Error('Missing required soundtrack: '+track);await copyFile(source,'www/assets/'+track);console.log('Bundled '+track+' from '+source)}
 console.log('Offline Android web assets built');
