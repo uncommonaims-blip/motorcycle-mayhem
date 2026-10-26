@@ -4,8 +4,9 @@
   "webDir": "www",
   "server": {
     "androidScheme": "https",
+    "url": "https://uncommonaims-blip.github.io/motorcycle-mayhem/",
     "allowNavigation": [
-      "motorcycle-mayhem.vercel.app"
+      "uncommonaims-blip.github.io"
     ]
   }
 }
