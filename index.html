@@ -99,6 +99,31 @@
 #viewToggle{top:calc(165px + env(safe-area-inset-top,0px))!important}
 
 #miniGame #miniExit{position:fixed!important;top:calc(12px + env(safe-area-inset-top,0px))!important;left:10px!important;right:auto!important;bottom:auto!important;z-index:100!important;background:#ffd24c!important;color:#171717!important;padding:10px 14px!important;font-size:12px!important;pointer-events:auto!important}#miniGame:has(canvas[data-pinball]) h2{padding-left:110px}#store .shop-max-button{font-size:11px!important;padding:4px 9px!important;white-space:nowrap}
+
+/* Comic-book motel cutscene: exterior hearts then a discreet backlit silhouette. */
+#hotelCutscene .motel-title{font-size:clamp(22px,6vw,32px);color:#ffcf8d;margin-bottom:12px}
+#hotelCutscene .motel-stage{width:min(88vw,420px);height:270px;position:relative;overflow:hidden;border:5px solid #9b527d;border-radius:15px;background:linear-gradient(#27143e,#5b2c5a)}
+#hotelCutscene .motel-building{position:absolute;inset:20px 36px 0;background:#b85b85;border:5px solid #e59ab0;border-bottom:0;animation:motelExterior 5.6s both}
+#hotelCutscene .motel-door{position:absolute;bottom:0;left:12%;font-size:62px;animation:motelDoor 5.6s both}
+#hotelCutscene .motel-window{position:absolute;top:25px;right:16px;width:110px;height:100px;border:7px solid #fff0a6;background:#ffdd88;overflow:visible}
+#hotelCutscene .motel-window span{position:absolute;font-size:28px;opacity:0;animation:motelHearts 2.4s ease-out infinite}
+#hotelCutscene .motel-window span:nth-child(2){left:35px;animation-delay:.45s}
+#hotelCutscene .motel-window span:nth-child(3){left:65px;animation-delay:.9s}
+#hotelCutscene .motel-window span:nth-child(4){left:18px;animation-delay:1.4s}
+#hotelCutscene .motel-bedroom{position:absolute;inset:0;background:linear-gradient(#d2a5bf,#f6c7ab);opacity:0;animation:motelBedroom 5.6s both}
+#hotelCutscene .motel-moon{position:absolute;left:32px;top:24px;width:85px;height:85px;border-radius:50%;background:#fff3d2;box-shadow:0 0 70px #fff6d0}
+#hotelCutscene .motel-bed{position:absolute;bottom:30px;left:12%;width:76%;height:60px;background:#422638;border-radius:20px 20px 5px 5px;border-bottom:14px solid #241526}
+#hotelCutscene .motel-person{position:absolute;background:#342134;bottom:86px;border-radius:40px;transform-origin:bottom center}
+#hotelCutscene .motel-person-a{left:35%;width:90px;height:33px;transform:rotate(-8deg)}
+#hotelCutscene .motel-person-b{left:47%;width:100px;height:38px;transform:rotate(-25deg);animation:motelCuddle 1.25s ease-in-out infinite alternate}
+#hotelCutscene .motel-heart{position:absolute;left:50%;top:48px;color:#c12463;font-size:40px;animation:motelPulse 1s ease-in-out infinite alternate}
+#hotelCutscene .motel-caption{font-size:15px;font-weight:400;margin-top:15px}
+@keyframes motelExterior{0%,43%{opacity:1}53%,100%{opacity:0}}
+@keyframes motelBedroom{0%,46%{opacity:0}57%,100%{opacity:1}}
+@keyframes motelDoor{0%,15%{opacity:1}30%,100%{opacity:.3}}
+@keyframes motelHearts{0%{transform:translateY(50px) scale(.5);opacity:0}25%{opacity:1}100%{transform:translateY(-90px) scale(1.3);opacity:0}}
+@keyframes motelCuddle{from{transform:rotate(-23deg) translateY(0)}to{transform:rotate(-18deg) translateY(-5px)}}
+@keyframes motelPulse{to{transform:scale(1.22)}}
 </style></head><body><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
  <div class="shop-scene">
   <div class="shop-sign">MAYHEM MOTOR MART <span>OPEN 24/7</span></div>
@@ -171,9 +196,9 @@ const passengerHead=new T.Mesh(new T.SphereGeometry(.29,12,10),passengerSkin);pa
 const passengerHair=new T.Mesh(new T.SphereGeometry(.33,12,10),hairMat);passengerHair.scale.set(1,1.15,.85);passengerHair.position.set(0,2.47,1.17);hitchPassenger.add(passengerHair);
 for(const side of [-1,1]){bikeRod([side*.29,1.95,1.04],[side*.38,1.48,.37],.085,passengerSkin,hitchPassenger);bikeRod([side*.2,1.1,1.08],[side*.34,.68,1.15],.11,passengerSkin,hitchPassenger)}
 let hitchhiker=null,hitchCooldown=25,hitchRideTime=0,hotel=null,hotelSceneTimer=0;
-const hotelCurtain=document.createElement("div");hotelCurtain.style.cssText="display:none;position:fixed;inset:0;z-index:70;background:#170c22;color:#ffdbb0;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:25px;font-weight:900;padding:25px";hotelCurtain.innerHTML='<div style="font-size:54px">🏩 💕</div><div>THE MAYHEM MOTEL</div><p style="font-size:15px;font-weight:400">A romantic night off the road...</p>';document.body.appendChild(hotelCurtain);
+const hotelCurtain=document.createElement("div");hotelCurtain.style.cssText="display:none;position:fixed;inset:0;z-index:70;background:#170c22;color:#ffdbb0;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:25px;font-weight:900;padding:25px";hotelCurtain.innerHTML='<div class="motel-title">🏩 MAYHEM MOTEL</div><div class="motel-stage"><div class="motel-building"><div class="motel-door">🚪</div><div class="motel-window"><span>💕</span><span>💗</span><span>💖</span><span>💕</span></div></div><div class="motel-bedroom"><div class="motel-moon"></div><div class="motel-bed"></div><div class="motel-person motel-person-a"></div><div class="motel-person motel-person-b"></div><div class="motel-heart">♥</div></div></div><div class="motel-caption">A romantic night at the Mayhem Motel...</div>';hotelCurtain.id="hotelCutscene";document.body.appendChild(hotelCurtain);
 function makeHotel(){if(hotel)return;const g=new T.Group();scene.add(g);const pink=material(0xda6291),light=new T.MeshBasicMaterial({color:0xffdc76});cube(10,7,8,pink,0,3.5,0,g);cube(11,.6,9,material(0x562948),0,7.2,0,g);cube(2.5,3,.15,material(0x34203a),0,1.5,4.08,g);for(const x of [-3,3])for(const y of [2.7,5.1])cube(1.3,1.3,.2,light,x,y,4.12,g);cube(8,1.2,.3,light,0,8.2,4,g);g.position.set(17,0,-175);hotel={g};popup("🏩 MAYHEM MOTEL AHEAD — PULL OVER TO CHECK IN")}
-function finishHotelDate(){if(!hotel||hotelSceneTimer>0)return;hotelSceneTimer=3.5;hotelCurtain.style.display="flex";hitchPassenger.visible=false;award(2500,"ROMANTIC MOTEL RENDEZVOUS");popup("💕 DATE NIGHT BONUS +2500");}
+function finishHotelDate(){if(!hotel||hotelSceneTimer>0)return;hotelSceneTimer=5.6;hotelCurtain.style.display="flex";hotelCurtain.style.animation="none";void hotelCurtain.offsetWidth;hotelCurtain.style.animation="";hitchPassenger.visible=false;award(2500,"ROMANTIC MOTEL RENDEZVOUS");popup("💕 DATE NIGHT BONUS +2500");}
 function spawnHitchhiker(){if(hitchhiker||hitchPassenger.visible)return;const g=hitchPassenger.clone(true);scene.add(g);g.position.set(Math.random()<.5?-13.5:13.5,0,-165);g.visible=true;hitchhiker=g;popup("💃 HITCHHIKER AHEAD — SLOW DOWN ON THE SHOULDER")}
 function updateHitchhiker(dt){if(hotelSceneTimer>0){hotelSceneTimer-=dt;if(hotelSceneTimer<=0){hotelCurtain.style.display="none";if(hotel){scene.remove(hotel.g);hotel=null}hitchCooldown=80}}if(hitchPassenger.visible){hitchRideTime-=dt;if(hitchRideTime<=0){hitchPassenger.visible=false;if(hotel){scene.remove(hotel.g);hotel=null}popup("💃 SHE HAD TO GO — MISSED THE MOTEL")}}else if(!hitchhiker){hitchCooldown-=dt;if(hitchCooldown<=0){hitchCooldown=75+Math.random()*65;spawnHitchhiker()}}
 if(hotel){hotel.g.position.z+=speed*.19*dt;if(hitchPassenger.visible&&hotelSceneTimer<=0&&Math.abs(hotel.g.position.z-bike.position.z)<8&&Math.abs(bike.position.x-hotel.g.position.x)<7&&speed<125&&airTime<=0)finishHotelDate();if(hotel.g.position.z>65){scene.remove(hotel.g);hotel=null}}if(hitchhiker){hitchhiker.position.z+=speed*.19*dt;const near=Math.abs(hitchhiker.position.z-bike.position.z)<4&&Math.abs(hitchhiker.position.x-bike.position.x)<3.2;if(near&&speed<125&&airTime<=0){scene.remove(hitchhiker);hitchhiker=null;hitchPassenger.visible=true;hitchRideTime=95;makeHotel();popup("💕 SHE SUGGESTS THE MAYHEM MOTEL — FOLLOW THE SIGN!")}else if(hitchhiker.position.z>45){scene.remove(hitchhiker);hitchhiker=null}}}
