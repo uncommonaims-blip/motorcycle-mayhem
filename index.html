@@ -243,7 +243,7 @@ function startDeluxePinball(){
  ctx.strokeStyle="#45d9ff";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(28,640);ctx.lineTo(18,580);ctx.lineTo(18,65);ctx.quadraticCurveTo(18,15,70,15);ctx.lineTo(290,15);ctx.quadraticCurveTo(342,15,342,65);ctx.lineTo(342,580);ctx.lineTo(332,640);ctx.stroke();
  ctx.fillStyle="#fff";ctx.font="bold 20px sans-serif";ctx.textAlign="center";ctx.fillText("HIGHWAY PINBALL",180,51);ctx.font="bold 14px sans-serif";ctx.fillStyle="#ffd755";ctx.fillText("SCORE "+pts+"    BALLS "+lives,180,76);ctx.strokeStyle="#f8b952";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(309,80);ctx.lineTo(309,648);ctx.stroke();ctx.fillStyle="#ffcf66";ctx.fillRect(315,635-charge*26,14,6);
  for(const [px,py,r] of bumpers){ctx.beginPath();ctx.arc(px,py,r,0,7);ctx.fillStyle=(px%2)?"#ff428a":"#ffc23e";ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=18;ctx.fill();ctx.shadowBlur=0;ctx.fillStyle="#fff";ctx.font="bold 18px sans-serif";ctx.fillText("★",px,py+6)}
- for(let i=0;i<12;i++){ctx.fillStyle="#46ffff";ctx.fillRect(48+i%6*52,108+Math.floor(i/6)*320,5,14)}
+ for(let i=0;i<12;i++){ctx.fillStyle="#46ffff";ctx.fillRect(48+i%6*52,108+Math.floor(i/6)*320,5,14)}for(let i=0;i<9;i++){const x=55+(i%3)*122,y=205+Math.floor(i/3)*105;ctx.strokeStyle="#f7d35c";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,7);ctx.stroke();ctx.fillStyle="#f8b4e9";ctx.fillRect(x-3,y-3,6,6)}
  // Sloping guides feed the flippers; narrow center gap drains; outer lanes can drain.
  line(24,485,103,567,"#5ce5ff",8);line(336,485,257,567,"#5ce5ff",8);line(103,567,103,608,"#ff8b6d",6);line(257,567,257,608,"#ff8b6d",6);
  line(25,560,59,625,"#ff6d9e",5);line(335,560,301,625,"#ff6d9e",5);
@@ -260,7 +260,28 @@ function startDeluxePinball(){
  ball.vx=Math.max(-9,Math.min(9,ball.vx));ball.vy=Math.max(-12,Math.min(12,ball.vy));}}
  if(!done)info.textContent=launched?"LEFT / RIGHT FLIPPERS • "+pts+" points":"PULL BACK AND RELEASE PLUNGER • "+lives+" BALLS LEFT";requestAnimationFrame(frame)};frame()
 }
+function showArcadeMenu(){
+ if(!storeOpen||miniRunning)return;
+ const field=$("miniField");field.replaceChildren();$("miniGame").style.display="block";$("miniTitle").textContent="👾 MAYHEM ARCADE";$("miniInfo").textContent="CHOOSE A CABINET";$("miniControls").style.display="none";$("miniExit").style.display="block";
+ const choices=[["👾 SPACE INVADERS","arcade"],["🐛 CENTIPEDE","centipede"],["🐸 ROAD HOPPER","frogger"],["⚡ PINBALL","pinball"]];
+ const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:20px 8px";
+ for(const [label,kind] of choices){const b=document.createElement("button");b.textContent=label;b.style.cssText="font-size:15px;min-height:95px;background:#31496b;color:#fff;border:2px solid #e9bc52";b.onclick=()=>startMiniGame(kind);grid.appendChild(b)}field.appendChild(grid)
+}
+function startExtraArcade(kind){
+ if(!storeOpen||miniRunning)return;miniRunning=true;const session=++miniSession,field=$("miniField");field.replaceChildren();$("miniGame").style.display="block";$("miniTitle").textContent=kind==="centipede"?"🐛 CENTIPEDE":"🐸 ROAD HOPPER";$("miniControls").style.display="flex";$("miniFire").style.display=kind==="centipede"?"block":"none";
+ const canvas=document.createElement("canvas");canvas.width=360;canvas.height=460;canvas.style.cssText="width:100%;height:100%;object-fit:contain";field.appendChild(canvas);const ctx=canvas.getContext("2d");let left=false,right=false,fire=false,scoreMini=0,lives=3,frame=0;let frog={x:180,y:425},carsMini=[],shots=[],segments=Array.from({length:12},(_,i)=>({x:160-i*20,y:40,alive:true}));let dir=1;
+ const bind=(id,key)=>{const b=$(id);b.onpointerdown=e=>{e.preventDefault();key(true)};b.onpointerup=b.onpointercancel=()=>key(false)};bind("miniLeft",v=>left=v);bind("miniRight",v=>right=v);bind("miniFire",v=>fire=v);
+ canvas.onpointerdown=e=>{if(kind==="frogger"){frog.y-=38;frog.x+=((e.clientX-canvas.getBoundingClientRect().left)/canvas.getBoundingClientRect().width-.5)*35}};
+ function frameStep(){if(!miniRunning||session!==miniSession||!storeOpen)return;frame++;ctx.fillStyle="#09172a";ctx.fillRect(0,0,360,460);
+ if(kind==="centipede"){if(left)frog.x=Math.max(12,frog.x-5);if(right)frog.x=Math.min(348,frog.x+5);if(fire&&frame%9===0)shots.push({x:frog.x,y:410});ctx.fillStyle="#59caff";ctx.fillRect(frog.x-13,416,26,19);
+ for(const p of shots){p.y-=8;ctx.fillStyle="#ffe96d";ctx.fillRect(p.x-2,p.y,4,12)}shots=shots.filter(p=>p.y>0);
+ if(frame%4===0){let edge=false;for(const c of segments)if(c.alive){c.x+=dir*3;if(c.x<15||c.x>345)edge=true}if(edge){dir*=-1;for(const c of segments)c.y+=20}}
+ for(const c of segments){if(!c.alive)continue;ctx.fillStyle="#6ae66c";ctx.beginPath();ctx.arc(c.x,c.y,10,0,Math.PI*2);ctx.fill();for(const p of shots)if(Math.abs(p.x-c.x)<12&&Math.abs(p.y-c.y)<13){c.alive=false;p.y=-100;scoreMini+=100}if(c.y>410){lives--;c.y=30}}if(segments.every(c=>!c.alive))segments=Array.from({length:12},(_,i)=>({x:160-i*20,y:30,alive:true}));
+ }else{if(frame%34===0)carsMini.push({x:Math.random()<.5?-40:400,y:80+Math.floor(Math.random()*7)*43,v:(Math.random()<.5?1:-1)*(2+Math.random()*2)});for(const c of carsMini){c.x+=c.v;ctx.fillStyle="#f0655d";ctx.fillRect(c.x-22,c.y-12,44,23);if(Math.abs(c.x-frog.x)<28&&Math.abs(c.y-frog.y)<22){lives--;frog.y=425;frog.x=180}}carsMini=carsMini.filter(c=>c.x>-60&&c.x<420);if(left)frog.x=Math.max(10,frog.x-4);if(right)frog.x=Math.min(350,frog.x+4);if(frame%17===0)frog.y-=2;ctx.fillStyle="#62e985";ctx.beginPath();ctx.arc(frog.x,frog.y,13,0,7);ctx.fill();if(frog.y<30){scoreMini+=500;frog.y=425;frog.x=180}}
+ $("miniInfo").textContent="SCORE "+scoreMini+" • LIVES "+Math.max(0,lives)+(kind==="frogger"?" • TAP ROAD TO HOP":" • FIRE TO SHOOT");if(lives<=0){$("miniInfo").textContent+=" • GAME OVER";return}requestAnimationFrame(frameStep)}frameStep()
+}
 function startMiniGame(kind){
+ if(kind==="centipede"||kind==="frogger"){startExtraArcade(kind);return}
  if(kind==="pinball"){startDeluxePinball();return;}
  if(!storeOpen||miniRunning)return;
  miniRunning=true;$("rideInventory").style.display="none";const session=++miniSession,field=$("miniField");field.replaceChildren();
@@ -302,7 +323,7 @@ function startMiniGame(kind){
   if(!done){info.textContent=kind==="pinball"?"Hold LEFT / RIGHT to flip • "+points+" points":"Move LEFT / RIGHT and hold FIRE • "+points+" points";requestAnimationFrame(frame)}
  };frame()
 }
-$("pinballGame").onclick=()=>startMiniGame("pinball");$("arcadeGame").onclick=()=>startMiniGame("arcade");$("miniExit").onclick=()=>{miniRunning=false;miniSession++;$("miniGame").style.display="none";$("rideInventory").style.display="flex";$("miniField").replaceChildren();$("miniControls").replaceChildren();$("miniControls").innerHTML='<button id="miniLeft">◀ LEFT</button><button id="miniFire">● FIRE</button><button id="miniRight">RIGHT ▶</button>'};
+$("pinballGame").onclick=()=>startMiniGame("pinball");$("arcadeGame").onclick=showArcadeMenu;$("miniExit").onclick=()=>{miniRunning=false;miniSession++;$("miniGame").style.display="none";$("rideInventory").style.display="flex";$("miniField").replaceChildren();$("miniControls").replaceChildren();$("miniControls").innerHTML='<button id="miniLeft">◀ LEFT</button><button id="miniFire">● FIRE</button><button id="miniRight">RIGHT ▶</button>'};
 function dropOil(){if(!playing||paused||oilCans<=0)return;oilCans--;const g=new T.Group();scene.add(g);cube(3,.04,4,material(0x121317),0,.035,0,g);g.position.set(bike.position.x,0,bike.position.z+4);const caught=wanted>0&&(cop||policeBackup);if(caught){for(const p of [cop,policeBackup])if(p){p.rotation.z=1.4;scene.remove(p);policeAttacks.delete(p)}cop=null;policeBackup=null;escapePolice("POLICE SLIPPED ON OIL!");award(1500,"OIL TRAP")}else popup("OIL SLICK DROPPED");setTimeout(()=>scene.remove(g),3000)}
 $("dropOil").onclick=dropOil;$("leaveStore").onclick=()=>{$("store").style.display="none";storeOpen=false;miniRunning=false;miniSession++;$("miniGame").style.display="none";$("rideInventory").style.display="flex";if(storeFromIntro){storeFromIntro=false;paused=false;speed=0;$("overlay").style.display="flex";$("leaveStore").textContent="BACK ON THE ROAD →"}else{paused=false;speed=55;serviceCooldown=60}syncMotoMusic()};
 function makeService(){if(service)return;const g=new T.Group();scene.add(g);g.position.set(17,0,serviceOffer++===0?-95:-190);const blue=material(0x2978b9),yellow=material(0xffd451);cube(11,.18,25,material(0x555960),0,.01,0,g);cube(9,.6,8,blue,0,7,-5,g);for(const x of [-4,4])cube(.6,7,.6,steel,x,3.5,-5,g);cube(7,2,.4,yellow,0,9,-5,g);service={g,used:false};popup("SERVICE STATION AHEAD — MOVE RIGHT")}
