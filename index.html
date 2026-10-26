@@ -214,12 +214,12 @@ function tick(){requestAnimationFrame(tick);const dt=Math.min(.045,clock.getDelt
 </script>
 <div id="rideInventory" style="position:fixed;bottom:calc(125px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:9;display:flex;gap:8px;pointer-events:auto;align-items:center"><button id="stashToggle" style="padding:10px;border-radius:12px;background:#3a4b69;color:white">🎒 STASH</button><button id="drinkBeer" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍺 0</button><button id="eatMushroom" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍄 0</button><span id="starHud" style="background:#142c48b8;padding:10px;border-radius:12px;color:#ffe16c">⭐ 0/5 · ♥ 0</span></div><button id="gameUpdateButton" type="button">↻ UPDATE GAME</button><div id="gameUpdateMessage" role="status"></div>
 <script>
-(()=>{const btn=document.getElementById('gameUpdateButton'),msg=document.getElementById('gameUpdateMessage');let hide;
-const notice=t=>{msg.textContent=t;msg.style.display='block';clearTimeout(hide);hide=setTimeout(()=>msg.style.display='none',6500)};
-btn.addEventListener('click',async()=>{btn.disabled=true;btn.textContent='CHECKING…';try{
-const u=new URL('https://motorcycle-mayhem.vercel.app/');u.searchParams.set('game_update',String(Date.now()));
-if(!navigator.onLine)throw Error('No internet connection');
-notice('Opening the latest published game…');window._gameAudio?.suspend().catch(()=>{});location.assign(u.toString());
-}catch(e){notice('Unable to check for updates. Your installed game still works offline. '+e.message)}
-finally{btn.disabled=false;btn.textContent='↻ UPDATE GAME'}})})();
+(()=>{const btn=document.getElementById('gameUpdateButton'),msg=document.getElementById('gameUpdateMessage'),live='https://uncommonaims-blip.github.io/motorcycle-mayhem/';let hide;
+const notice=t=>{msg.textContent=t;msg.style.display='block';clearTimeout(hide);hide=setTimeout(()=>msg.style.display='none',7000)};
+const isLive=location.hostname==='uncommonaims-blip.github.io';
+async function available(){if(!navigator.onLine)throw Error('No internet connection');const response=await fetch(live+'index.html?check='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Live game not published yet ('+response.status+')');return true}
+function goLive(){const url=new URL(live);url.searchParams.set('game_update',String(Date.now()));window._gameAudio?.suspend().catch(()=>{});location.replace(url.href)}
+btn.addEventListener('click',async()=>{btn.disabled=true;btn.textContent='CHECKING…';try{await available();if(!isLive)localStorage.setItem('mayhemLiveUpdates','yes');notice('Loading the latest GitHub game…');goLive()}catch(e){notice('Update unavailable. Your installed game still works offline. '+e.message)}finally{btn.disabled=false;btn.textContent='↻ UPDATE GAME'}});
+if(!isLive&&localStorage.getItem('mayhemLiveUpdates')==='yes'){available().then(goLive).catch(()=>{notice('Offline mode: using installed game')})}
+})();
 </script></body></html>
