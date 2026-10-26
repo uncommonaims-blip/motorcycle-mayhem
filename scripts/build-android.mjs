@@ -7,5 +7,5 @@ html=html.replace(remote,'./vendor/three.module.js');
 await writeFile('www/index.html',html);
 await copyFile('node_modules/three/build/three.module.js','www/vendor/three.module.js');
 await mkdir('www/assets',{recursive:true});
-for(const track of ['moto-funk.mp3','hot-pursuit.mp3']){let source;for(const candidate of ['assets/'+track,track]){try{await access(candidate);source=candidate;break}catch{}}if(!source)throw Error('Missing required soundtrack: '+track);await copyFile(source,'www/assets/'+track);console.log('Bundled '+track+' from '+source)}
+for(const track of ['moto-funk.mp3','hot-pursuit.mp3','psilocybin-skyway.mp3']){let source;for(const candidate of ['assets/'+track,track]){try{await access(candidate);source=candidate;break}catch{}}if(!source)throw Error('Missing required soundtrack: '+track);await copyFile(source,'www/assets/'+track);console.log('Bundled '+track+' from '+source)}
 console.log('Offline Android web assets built');
