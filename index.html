@@ -146,6 +146,8 @@
 @keyframes roadMotelHeart{from{opacity:.5;transform:scale(.8)}to{opacity:1;transform:scale(1.25)}}
 
 body.nos-overload #speedGauge{border-color:#ff3838;box-shadow:0 0 18px #f22,0 0 35px #f226;animation:nosGaugeRattle .11s linear infinite}body.nos-overload #speedReadout{color:#ff4545;text-shadow:0 0 8px #f00}body.nos-overload #nosStreaks:before{filter:blur(calc(3px + var(--nos-intensity)*1px));animation-duration:.18s;opacity:1}body.nos-overload #nosStreaks:after{filter:blur(calc(5px + var(--nos-intensity)*1.5px));animation-duration:.25s;opacity:1}@keyframes nosGaugeRattle{0%{translate:-2px 1px}50%{translate:2px -1px}100%{translate:-1px 2px}}@media(prefers-reduced-motion:reduce){body.nos-overload #speedGauge{animation:none}}
+
+body.beat-active #speedGauge{box-shadow:0 0 20px rgba(110,255,170,.8);border-color:rgba(135,255,185,.8)}
 </style></head><body><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
  <div class="shop-scene">
   <div class="shop-sign">MAYHEM MOTOR MART <span>OPEN 24/7</span></div>
@@ -297,16 +299,30 @@ function updateMusicMix(dt){const target=desiredMusic();if(target!==activeMusic)
 /* Beat-reactive visuals: analyse the music already playing; never change physics coordinates. */
 let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=0,beatPulse=0,beatBaseline=.08,beatCooldown=0,beatTime=0;
 function enableBeatAudio(){if(beatContext)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;beatContext=new AC();beatAnalyser=beatContext.createAnalyser();beatAnalyser.fftSize=512;beatAnalyser.smoothingTimeConstant=.72;beatSamples=new Uint8Array(beatAnalyser.frequencyBinCount);for(const track of musicTracks){const source=beatContext.createMediaElementSource(track);source.connect(beatAnalyser);beatNodes.push(source)}beatAnalyser.connect(beatContext.destination)}catch(e){beatAnalyser=null}}
-function updateBeatWorld(dt){beatTime+=dt;beatCooldown=Math.max(0,beatCooldown-dt);const on=playing&&!paused&&!storeOpen&&weedTimer>0&&musicEnabled&&activeMusic&&!activeMusic.paused;
- let energy=0;if(on&&beatAnalyser&&beatContext&&beatContext.state==="running"){beatAnalyser.getByteFrequencyData(beatSamples);for(let i=2;i<32;i++)energy+=beatSamples[i];energy/=30*255}
- beatBaseline+=(energy-beatBaseline)*Math.min(1,dt*.8);
- if(on&&energy>Math.max(.15,beatBaseline*1.35)&&beatCooldown<=0){beatPulse=1;beatCooldown=.22}
- beatPulse=Math.max(0,beatPulse-dt*3.2);beatEnergy+=(on?Math.max(beatPulse,energy*.7):0-beatEnergy)*Math.min(1,dt*9);
- const intensity=on?Math.min(.19,beatEnergy*.11*(.65+weedLevel*.3)):0;
- for(const o of sceneryParts.trees){const scale=1+intensity*(o.layer===0?1:.55);o.mesh.scale.y=scale}
- for(const o of sceneryParts.grass)o.mesh.scale.y=1+intensity*2;
- for(const c of cars){const visual=c.g.userData.beatOffset||0;const next=intensity*.35;c.g.position.y+=next-visual;c.g.userData.beatOffset=next}
- document.body.style.setProperty("--beat-glow",String(Math.min(.6,beatEnergy*.5)));
+function updateBeatWorld(dt){
+ beatTime+=dt;beatCooldown=Math.max(0,beatCooldown-dt);
+ const on=playing&&!paused&&!storeOpen&&weedTimer>0&&musicEnabled&&activeMusic&&!activeMusic.paused;
+ let energy=0,realAudio=false;
+ if(on&&beatAnalyser&&beatContext&&beatContext.state==="running"){
+  beatAnalyser.getByteFrequencyData(beatSamples);
+  for(let i=2;i<45;i++)energy+=beatSamples[i];
+  energy/=43*255;realAudio=energy>.018;
+ }
+ // Some Android audio engines return silence from analysers; keep a fallback pulse.
+ const rhythm=Math.pow(Math.max(0,Math.sin(beatTime*Math.PI*2*2)),7);
+ if(on&&!realAudio)energy=.18+.55*rhythm;
+ beatBaseline+=(energy-beatBaseline)*Math.min(1,dt*.7);
+ if(on&&energy>Math.max(.13,beatBaseline*1.18)&&beatCooldown<=0){beatPulse=1;beatCooldown=.24}
+ beatPulse=Math.max(0,beatPulse-dt*2.8);
+ const target=on?Math.max(beatPulse,energy*.9):0;
+ beatEnergy+=(target-beatEnergy)*Math.min(1,dt*12);
+ const intensity=on?Math.min(.46,beatEnergy*.37*(.7+weedLevel*.2)):0;
+ for(const o of sceneryParts.trees)o.mesh.scale.y=1+intensity*(o.layer===0?1.5:o.layer===1?1:.65);
+ for(const o of sceneryParts.grass)o.mesh.scale.y=1+intensity*2.5;
+ for(const c of cars){const previous=c.g.userData.beatOffset||0,next=intensity*.9;c.g.position.y+=next-previous;c.g.userData.beatOffset=next}
+ for(const o of sceneryParts.mountains)o.mesh.scale.y=1+intensity*.15;
+ document.body.style.setProperty("--beat-glow",String(on?Math.min(.8,beatEnergy*.8):0));
+ document.body.classList.toggle("beat-active",!!on);
 }
 musicToggle.onclick=()=>{enableBeatAudio();if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});musicEnabled=!musicEnabled;syncMotoMusic()};document.addEventListener("visibilitychange",syncMotoMusic);
 const $=id=>document.getElementById(id);const rider=new T.Group();scene.add(rider);const riderHead=new T.Mesh(new T.SphereGeometry(.43,10,10),material(0x20232a));rider.add(riderHead);cube(.7,1,.45,material(0x2c72d4),0,-.65,0,rider);const packMat=material(0xc92332),packTrim=material(0x7c101c);cube(.65,.85,.3,packMat,0,-.55,.38,rider);cube(.54,.18,.36,packTrim,0,-.25,.39,rider);cube(.13,.75,.12,packTrim,-.28,-.55,.21,rider);cube(.13,.75,.12,packTrim,.28,-.55,.21,rider);rider.visible=false;function popup(s){$('pop').textContent=s;popTimer=1}
