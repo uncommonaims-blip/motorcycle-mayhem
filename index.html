@@ -293,10 +293,31 @@ function warmMusic(){for(const track of musicTracks){if(track.networkState===HTM
 chaseMusic.addEventListener("waiting",()=>{if(activeMusic===chaseMusic)musicToggle.textContent="♫ LOADING CHASE MUSIC"});chaseMusic.addEventListener("playing",()=>{if(activeMusic===chaseMusic)musicToggle.textContent="♫ CHASE MUSIC ON"});chaseMusic.addEventListener("error",()=>{if(activeMusic===chaseMusic)musicToggle.textContent="♫ CHASE MUSIC ERROR"});
 tripMusic.addEventListener("waiting",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ LOADING TRIP MUSIC"});
 tripMusic.addEventListener("playing",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ TRIP MUSIC ON"});
-tripMusic.addEventListener("error",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ MUSIC LOAD ERROR"});function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?chaseMusic:shroomTimer>0?tripMusic:motoMusic):null}
-function startMusic(track){if(!track)return;track.volume=Math.max(track.volume,.27);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const p=track.play();if(p&&p.catch)p.catch(()=>{if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
+tripMusic.addEventListener("error",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ MUSIC LOAD ERROR"});let chaseFallback=false,chaseSynthContext=null,chaseSynthNext=0,chaseSynthStep=0;
+chaseMusic.addEventListener("error",()=>{chaseFallback=true;if(wanted>0)musicToggle.textContent="♫ CHASE SYNTH ON"});
+function updateChaseSynth(){
+ const active=musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen&&wanted>0&&chaseFallback;
+ if(!active)return;
+ try{
+  if(!chaseSynthContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;chaseSynthContext=new AC()}
+  if(chaseSynthContext.state==="suspended"){chaseSynthContext.resume().catch(()=>{});return}
+  const now=chaseSynthContext.currentTime;
+  if(chaseSynthNext<now)chaseSynthNext=now;
+  const notes=[110,110,146.83,110,164.81,146.83,98,123.47,110,110,196,164.81,146.83,123.47,98,82.41];
+  for(let n=0;chaseSynthNext<now+.18&&n<4;n++){
+   const t=chaseSynthNext,step=chaseSynthStep++%notes.length;
+   const osc=chaseSynthContext.createOscillator(),gain=chaseSynthContext.createGain();
+   osc.type=step%4===0?"sawtooth":"square";osc.frequency.setValueAtTime(notes[step],t);
+   gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(step%4===0?.085:.042,t+.015);gain.gain.exponentialRampToValueAtTime(.0001,t+.16);
+   osc.connect(gain);gain.connect(chaseSynthContext.destination);osc.start(t);osc.stop(t+.18);
+   chaseSynthNext+=.21;
+  }
+ }catch(e){}
+}
+function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?(chaseFallback?null:chaseMusic):shroomTimer>0?tripMusic:motoMusic):null}
+function startMusic(track){if(!track)return;if(track===chaseMusic&&track.networkState===HTMLMediaElement.NETWORK_NO_SOURCE){chaseFallback=true;return}track.volume=Math.max(track.volume,.27);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const p=track.play();if(p&&p.catch)p.catch(()=>{if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
 function syncMotoMusic(){musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();activeMusic=target;startMusic(target);if(!target)for(const track of musicTracks)track.pause()}
-function updateMusicMix(dt){const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused&&target.readyState>=2)startMusic(target);for(const track of musicTracks){const volume=track===target?.27:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
+function updateMusicMix(dt){updateChaseSynth();const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused&&target.readyState>=2)startMusic(target);for(const track of musicTracks){const volume=track===target?.27:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
 /* Beat-reactive visuals: analyse the music already playing; never change physics coordinates. */
 let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=0,beatPulse=0,beatBaseline=.08,beatCooldown=0,beatTime=0;
 function enableBeatAudio(){if(beatContext)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;beatContext=new AC();beatAnalyser=beatContext.createAnalyser();beatAnalyser.fftSize=512;beatAnalyser.smoothingTimeConstant=.72;beatSamples=new Uint8Array(beatAnalyser.frequencyBinCount);for(const track of musicTracks){const source=beatContext.createMediaElementSource(track);source.connect(beatAnalyser);beatNodes.push(source)}beatAnalyser.connect(beatContext.destination);if(beatContext.state==="suspended")beatContext.resume().catch(()=>{})}catch(e){beatAnalyser=null}}
@@ -487,7 +508,7 @@ function escapePolice(label){wanted=0;policeTimer=0;for(const p of [cop,policeBa
 function makePoliceBike(){const g=new T.Group();scene.add(g);cube(.8,.55,2.4,material(0x142d53),0,1.1,0,g);wheel(g,0,-1.05);wheel(g,0,1.05);cube(.8,.9,.55,material(0x182747),0,1.6,.2,g);const helmet=new T.Mesh(new T.SphereGeometry(.43,12,10),material(0xf1f1f1));helmet.position.set(0,2.2,.2);g.add(helmet);cube(.55,.18,.35,material(0xff3333),-.3,2.55,0,g);cube(.55,.18,.35,material(0x3399ff),.3,2.55,0,g);return g}
 function spawnPatrol(){if(patrol||cop||wanted>0||patrolCooldown>0)return;patrol=makePoliceBike();patrol.position.set(14,0,-130);patrol.rotation.y=-Math.PI/2;patrolCrime=false}
 function witness(){if(wanted>0)return;if(patrol&&patrol.position.z<bike.position.z&&patrol.position.z>bike.position.z-100){patrolCrime=true}}
-function startPursuit(){if(!patrol)return;nosEscapeDistance=0;cop=patrol;patrol=null;cop.position.set(13,0,bike.position.z+24);cop.rotation.y=0;wanted=15;syncMotoMusic();policeTimer=1.3;escapeTimer=0;patrolCooldown=22;popup("POLICE CHASE! 2X DAMAGE")}
+function startPursuit(){if(!patrol)return;if(chaseFallback)chaseSynthNext=0;nosEscapeDistance=0;cop=patrol;patrol=null;cop.position.set(13,0,bike.position.z+24);cop.rotation.y=0;wanted=15;syncMotoMusic();policeTimer=1.3;escapeTimer=0;patrolCooldown=22;popup("POLICE CHASE! 2X DAMAGE")}
 function caughtByPolice(){if(!playing)return;popup("POLICE CAUGHT YOU!");finish();document.querySelector("h1").textContent="BUSTED!";document.querySelector("#overlay p").innerHTML="The pursuing officer caught your motorcycle.<br>Final damage score: <strong>"+score.toLocaleString()+"</strong>";}
 function attackPolice(g,dt,offset){if(!g)return;if(nosActive){g.position.z+=(bike.position.z+offset+nosEscapeDistance-g.position.z)*dt*.22;g.position.x+=(bike.position.x-g.position.x)*dt*.25;return}if(nosEscapeDistance>0){g.position.z+=(bike.position.z+offset+nosEscapeDistance-g.position.z)*dt*.12;g.position.x+=(bike.position.x-g.position.x)*dt*.14;return}let a=policeAttacks.get(g);if(!a){a={state:"follow",timer:3+Math.random()*3,aimX:0,fromZ:0};policeAttacks.set(g,a)}a.timer-=dt;
 if(a.state==="follow"){g.position.z+=(bike.position.z+offset-g.position.z)*dt*.6;g.position.x+=(bike.position.x+(offset>12?1.5:0)-g.position.x)*dt*.55;if(a.timer<=0){a.state="warn";a.timer=.9;a.aimX=bike.position.x;popup("⚠ POLICE LUNGE — DODGE!")}}
