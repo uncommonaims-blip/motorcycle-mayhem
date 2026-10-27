@@ -289,7 +289,7 @@ function updateTireFire(dt){const cap=290+Math.max(0,nosStack-1)*95;const active
 let sonicBoomLatched=false,sonicBoomTime=0;
 const sonicGroup=new T.Group();bike.add(sonicGroup);sonicGroup.position.set(0,1.5,0);
 const sonicWall=new T.Mesh(new T.RingGeometry(.75,3.7,64),new T.MeshBasicMaterial({color:0xf4fdff,transparent:true,opacity:0,depthWrite:false,side:T.DoubleSide}));sonicWall.rotation.x=Math.PI/2;sonicWall.position.z=-3.1;sonicGroup.add(sonicWall);
-const sonicCone=new T.Mesh(new T.ConeGeometry(4.3,12,64,1,true),new T.MeshBasicMaterial({color:0xd8f6ff,transparent:true,opacity:0,depthWrite:false,side:T.DoubleSide}));sonicCone.rotation.x=Math.PI/2;sonicCone.position.z=3.5;sonicGroup.add(sonicCone);
+const sonicCone=new T.Mesh(new T.ConeGeometry(4.3,12,64,1,true),new T.MeshBasicMaterial({color:0xd8f6ff,transparent:true,opacity:0,depthWrite:false,side:T.DoubleSide}));sonicCone.rotation.x=-Math.PI/2;sonicCone.position.z=3.5;sonicGroup.add(sonicCone);
 const sonicVapor=[];for(let i=0;i<4;i++){const m=new T.Mesh(new T.TorusGeometry(2.1+i*.4,.13+i*.03,8,48),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));m.position.z=1+i*2;sonicGroup.add(m);sonicVapor.push(m)}
 sonicGroup.visible=false;
 function playSonicBoom(){try{const a=window._gameAudio;if(!a||a.state!=="running")return;const t=a.currentTime;
