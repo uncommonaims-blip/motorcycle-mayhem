@@ -339,7 +339,11 @@ function syncMotoMusic(){musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"�
 function updateMusicMix(dt){if(wanted>0&&musicEnabled&&playing&&!paused&&!storeOpen&&!chaseFallback){if(chaseMusic.paused||chaseMusic.readyState<2)chaseLoadWait+=dt;else chaseLoadWait=0;if(chaseLoadWait>8&&chaseMusic.error){chaseFallback=true;musicToggle.textContent="♫ CHASE AUDIO ERROR";chaseSynthNext=0}}else chaseLoadWait=0;updateChaseSynth();const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused&&target.readyState>=2)startMusic(target);for(const track of musicTracks){const volume=track===target?.55:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
 /* Beat-reactive visuals: analyse the music already playing; never change physics coordinates. */
 let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=0,beatPulse=0,beatBaseline=.08,beatCooldown=0,beatTime=0;
-function enableBeatAudio(){if(beatContext)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;beatContext=new AC();beatAnalyser=beatContext.createAnalyser();beatAnalyser.fftSize=512;beatAnalyser.smoothingTimeConstant=.72;beatSamples=new Uint8Array(beatAnalyser.frequencyBinCount);for(const track of musicTracks){const source=beatContext.createMediaElementSource(track);source.connect(beatAnalyser);beatNodes.push(source)}beatAnalyser.connect(beatContext.destination);if(beatContext.state==="suspended")beatContext.resume().catch(()=>{})}catch(e){beatAnalyser=null;musicToggle.textContent="♫ AUDIO ANALYSER UNAVAILABLE"}}
+// Keep music on native HTMLAudioElement output. Routing tracks through WebAudio
+// can mute them on mobile when the AudioContext is suspended by autoplay policy.
+// Beat visuals retain their rhythmic fallback independently of this audio path.
+function enableBeatAudio(){return}
+
 function updateBeatWorld(dt){
  beatTime+=dt;beatCooldown=Math.max(0,beatCooldown-dt);
  const on=playing&&!paused&&!storeOpen&&weedTimer>0;
