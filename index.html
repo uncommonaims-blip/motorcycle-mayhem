@@ -301,34 +301,34 @@ let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=
 function enableBeatAudio(){if(beatContext)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;beatContext=new AC();beatAnalyser=beatContext.createAnalyser();beatAnalyser.fftSize=512;beatAnalyser.smoothingTimeConstant=.72;beatSamples=new Uint8Array(beatAnalyser.frequencyBinCount);for(const track of musicTracks){const source=beatContext.createMediaElementSource(track);source.connect(beatAnalyser);beatNodes.push(source)}beatAnalyser.connect(beatContext.destination)}catch(e){beatAnalyser=null}}
 function updateBeatWorld(dt){
  beatTime+=dt;beatCooldown=Math.max(0,beatCooldown-dt);
- const on=playing&&!paused&&!storeOpen&&weedTimer>0&&musicEnabled&&activeMusic&&!activeMusic.paused;
+ const on=playing&&!paused&&!storeOpen&&weedTimer>0;
  let energy=0,realAudio=false;
- if(on&&beatAnalyser&&beatContext&&beatContext.state==="running"){
+ if(on&&musicEnabled&&activeMusic&&!activeMusic.paused&&beatAnalyser&&beatContext&&beatContext.state==="running"){
   beatAnalyser.getByteFrequencyData(beatSamples);
   for(let i=2;i<65;i++)energy+=beatSamples[i];
-  energy/=63*255;realAudio=energy>.025;
+  energy/=63*255;realAudio=energy>.04;
  }
  // Android WebView may not expose reliable frequency data; use a clear 120 BPM fallback.
  const phase=(beatTime*2)%1;
- const rhythm=Math.pow(Math.max(0,1-phase),3);
- if(on&&!realAudio)energy=.13+.8*rhythm;
+ const rhythm=Math.pow(Math.max(0,1-phase),5);
+ if(on&&!realAudio)energy=.08+.92*rhythm;
  beatBaseline+=(energy-beatBaseline)*Math.min(1,dt*.6);
  if(on&&energy>Math.max(.16,beatBaseline*1.28)&&beatCooldown<=0){beatPulse=1;beatCooldown=.22}
  beatPulse=Math.max(0,beatPulse-dt*3.8);
  const target=on?Math.max(beatPulse,energy):0;
  beatEnergy+=(target-beatEnergy)*Math.min(1,dt*18);
- const intensity=on?Math.min(1,beatEnergy*(.75+weedLevel*.22)):0;
- for(const o of sceneryParts.trees)o.mesh.scale.y=1+intensity*(o.layer===0?.42:o.layer===1?.28:.16);
- for(const o of sceneryParts.grass)o.mesh.scale.y=1+intensity*.85;
+ const intensity=on?Math.min(1,beatEnergy*(.8+weedLevel*.25)):0;
+ for(const o of sceneryParts.trees)o.mesh.scale.y=1+intensity*(o.layer===0?.62:o.layer===1?.36:.19);
+ for(const o of sceneryParts.grass)o.mesh.scale.y=1+intensity*1.1;
  for(const c of cars){
-  const previous=c.g.userData.beatOffset||0,next=intensity*.72;
+  const previous=c.g.userData.beatOffset||0,next=intensity*.95;
   c.g.position.y+=next-previous;c.g.userData.beatOffset=next;
-  const oldTilt=c.g.userData.beatTilt||0,tilt=intensity*.075;
+  const oldTilt=c.g.userData.beatTilt||0,tilt=intensity*.11;
   c.g.rotation.z+=tilt-oldTilt;c.g.userData.beatTilt=tilt;
  }
- for(const o of sceneryParts.mountains)o.mesh.scale.y=1+intensity*.045;
+ for(const o of sceneryParts.mountains)o.mesh.scale.y=1+intensity*.07;
  const indicator=document.getElementById("beatIndicator");
- if(indicator){indicator.style.display=on?"block":"none";indicator.style.transform="translateX(-50%) scale("+(1+intensity*.18)+")";indicator.style.opacity=String(.6+intensity*.4);indicator.textContent="🎵 BEAT MODE "+(realAudio?"LIVE":"RHYTHM")+" · "+weedLevel}
+ if(indicator){indicator.style.display=on?"block":"none";indicator.style.transform="translateX(-50%) scale("+(1+intensity*.18)+")";indicator.style.opacity=String(.6+intensity*.4);indicator.textContent="🎵 BEAT MODE "+(realAudio?"LIVE AUDIO":"RHYTHM FALLBACK")+" · "+weedLevel}
  document.body.classList.toggle("beat-active",!!on);
 }
 
@@ -518,7 +518,7 @@ let underworldFall=0;function updateTripWorld(dt){if(underworldFall>0){underworl
 const drinkButton=document.getElementById("drinkBeer"),mushButton=document.getElementById("eatMushroom"),starHud=document.getElementById("starHud"),stashToggle=document.getElementById("stashToggle");document.getElementById("hud").appendChild(starHud);starHud.style.cssText="display:block;margin-top:5px;background:#142c48b8;padding:5px;border-radius:8px;color:#ffe16c";const stashExtra=document.createElement("div");stashExtra.id="stashExtras";stashExtra.style.cssText="position:fixed;bottom:115px;left:50%;transform:translateX(-50%);display:none;gap:5px;z-index:20";for(const [id,label] of [["useMed","🧰 MED"],["useGas","⛽ GAS"],["useWeed","🌿 WEED"]]){const b=document.createElement("button");b.id=id;b.textContent=label;b.style.cssText="font-size:12px;padding:9px 8px;border-radius:8px;background:#202e32;color:white;border:1px solid #e4c252";stashExtra.appendChild(b)}document.body.appendChild(stashExtra);let stashOpen=false;function refreshStash(){drinkButton.style.display=stashOpen?"inline-block":"none";mushButton.style.display=stashOpen?"inline-block":"none";stashExtra.style.display=stashOpen?"flex":"none";stashToggle.textContent=stashOpen?"🎒 CLOSE":"🎒 STASH"}stashToggle.onclick=()=>{stashOpen=!stashOpen;refreshStash()};refreshStash();
 document.getElementById("useMed").onclick=()=>{if(!playing||paused||medStock<=0||health>=100)return;medStock--;health=Math.min(100,health+35);popup("🧰 FIRST AID +35 HP");refreshStash()};
 document.getElementById("useGas").onclick=()=>{if(!playing||paused||gasStock<=0||fuel>=99.5)return;gasStock--;fuel=Math.min(100,fuel+50);fuelStrandedTime=0;popup("⛽ EMERGENCY REFUEL +50%");refreshStash()};
-document.getElementById("useWeed").onclick=()=>{if(!playing||paused||weedStock<=0)return;weedStock--;weedLevel=Math.min(3,weedLevel+1);weedTimer=55;enableBeatAudio();if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});spawnWeedPuff();popup("🌿 BEAT REACTIVE MODE "+weedLevel);refreshStash()};
+document.getElementById("useWeed").onclick=()=>{if(!playing||paused||weedStock<=0)return;weedStock--;weedLevel=Math.min(3,weedLevel+1);weedTimer=55;beatTime=0;beatPulse=1;enableBeatAudio();if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});spawnWeedPuff();popup("🌿 BEAT REACTIVE MODE "+weedLevel);refreshStash()};
 function consumeItem(kind){if(!playing||paused||(kind==="beer"&&consuming>0))return;if(kind==="beer"){if(beerStock<=0)return;beerStock--}else{if(mushroomStock<=0)return;mushroomStock--}consumeKind=kind;refreshStash();consuming=1.35;consumableDelay.push({kind,time:kind==="mushroom"?.45:5});if(kind==="mushroom"){shroomLevel=Math.min(3,shroomLevel+1);shroomTimer=70;mushroomArmor=1;warmMusic();tripMusic.volume=.27;activeMusic=tripMusic;startMusic(tripMusic);syncMotoMusic()}popup(kind==="beer"?"🍺 CHUG!":"🍄 MUNCH!")}
 drinkButton.addEventListener("click",()=>consumeItem("beer"));mushButton.addEventListener("click",()=>consumeItem("mushroom"));
 const heldItem=new T.Group();bike.add(heldItem);heldItem.position.set(-.65,1.5,-.1);
