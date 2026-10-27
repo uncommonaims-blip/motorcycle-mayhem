@@ -294,9 +294,9 @@ chaseMusic.addEventListener("waiting",()=>{if(activeMusic===chaseMusic)musicTogg
 tripMusic.addEventListener("waiting",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ LOADING TRIP MUSIC"});
 tripMusic.addEventListener("playing",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ TRIP MUSIC ON"});
 tripMusic.addEventListener("error",()=>{if(activeMusic===tripMusic)musicToggle.textContent="♫ MUSIC LOAD ERROR"});let chaseFallback=false,chaseSynthContext=null,chaseSynthNext=0,chaseSynthStep=0,chaseLoadWait=0;
-chaseMusic.addEventListener("error",()=>{chaseFallback=true;if(wanted>0)musicToggle.textContent="♫ CHASE SYNTH ON"});
+chaseMusic.addEventListener("error",()=>{chaseFallback=true;if(wanted>0)musicToggle.textContent="♫ CHASE AUDIO ERROR"});
 function updateChaseSynth(){
- const active=musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen&&wanted>0&&chaseFallback;
+ const active=musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen&&wanted>0&&chaseFallback&&chaseMusic.error;
  if(!active)return;
  try{
   if(!chaseSynthContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;chaseSynthContext=beatContext||new AC()}
@@ -314,10 +314,10 @@ function updateChaseSynth(){
   }
  }catch(e){}
 }
-function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?(chaseFallback?null:chaseMusic):shroomTimer>0?tripMusic:motoMusic):null}
-function startMusic(track){if(!track)return;if(track===chaseMusic&&track.networkState===HTMLMediaElement.NETWORK_NO_SOURCE){chaseFallback=true;musicToggle.textContent="♫ CHASE SYNTH ON";return}track.volume=Math.max(track.volume,.27);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const p=track.play();if(p&&p.catch)p.catch(()=>{if(track===chaseMusic){chaseFallback=true;musicToggle.textContent="♫ CHASE SYNTH ON"}else if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
+function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?chaseMusic:shroomTimer>0?tripMusic:motoMusic):null}
+function startMusic(track){if(!track)return;track.volume=Math.max(track.volume,.27);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const p=track.play();if(p&&p.catch)p.catch(()=>{if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
 function syncMotoMusic(){musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();activeMusic=target;startMusic(target);if(!target)for(const track of musicTracks)track.pause()}
-function updateMusicMix(dt){if(wanted>0&&musicEnabled&&playing&&!paused&&!storeOpen&&!chaseFallback){if(chaseMusic.paused||chaseMusic.readyState<2)chaseLoadWait+=dt;else chaseLoadWait=0;if(chaseLoadWait>2.5){chaseFallback=true;chaseMusic.pause();musicToggle.textContent="♫ CHASE SYNTH ON"}}else chaseLoadWait=0;updateChaseSynth();const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused&&target.readyState>=2)startMusic(target);for(const track of musicTracks){const volume=track===target?.27:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
+function updateMusicMix(dt){if(wanted>0&&musicEnabled&&playing&&!paused&&!storeOpen&&!chaseFallback){if(chaseMusic.paused||chaseMusic.readyState<2)chaseLoadWait+=dt;else chaseLoadWait=0;if(chaseLoadWait>7&&chaseMusic.error){chaseFallback=true;musicToggle.textContent="♫ CHASE AUDIO ERROR"}}else chaseLoadWait=0;updateChaseSynth();const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused&&target.readyState>=2&&chaseLoadWait<7)startMusic(target);for(const track of musicTracks){const volume=track===target?.27:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
 /* Beat-reactive visuals: analyse the music already playing; never change physics coordinates. */
 let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=0,beatPulse=0,beatBaseline=.08,beatCooldown=0,beatTime=0;
 function enableBeatAudio(){if(beatContext)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;beatContext=new AC();beatAnalyser=beatContext.createAnalyser();beatAnalyser.fftSize=512;beatAnalyser.smoothingTimeConstant=.72;beatSamples=new Uint8Array(beatAnalyser.frequencyBinCount);for(const track of musicTracks){const source=beatContext.createMediaElementSource(track);source.connect(beatAnalyser);beatNodes.push(source)}beatAnalyser.connect(beatContext.destination);if(beatContext.state==="suspended")beatContext.resume().catch(()=>{})}catch(e){beatAnalyser=null}}
