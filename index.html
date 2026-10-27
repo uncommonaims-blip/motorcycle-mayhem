@@ -337,8 +337,8 @@ function updateChaseSynth(){
 }
 function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?chaseMusic:shroomTimer>0?tripMusic:motoMusic):null}
 let musicRetryAt=0;
-function startMusic(track){if(!track)return;if(track.error){musicToggle.textContent="♫ FILE ERROR: "+(track===motoMusic?"MAIN":track===chaseMusic?"CHASE":"TRIP");return}track.volume=Math.max(track.volume,.55);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const now=performance.now();if(track._nextRetry&&now<track._nextRetry)return;track._nextRetry=now+700;const p=track.play();if(p&&p.catch)p.catch(()=>{if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
-function syncMotoMusic(){musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();activeMusic=target;startMusic(target);if(!target)for(const track of musicTracks)track.pause()}
+function startMusic(track){if(!track)return;if(track.error){musicToggle.textContent="♫ FILE ERROR: "+(track===motoMusic?"MAIN":track===chaseMusic?"CHASE":"TRIP");return}track.volume=Math.max(track.volume,.55);if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});if(track.paused){const now=performance.now();if(track._nextRetry&&now<track._nextRetry)return;track._nextRetry=now+400;const p=track.play();if(p&&p.catch)p.catch(()=>{if(activeMusic===track)musicToggle.textContent="♫ TAP FOR MUSIC"})}}
+function syncMotoMusic(){for(const track of musicTracks)track._nextRetry=0;musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();activeMusic=target;startMusic(target);if(!target)for(const track of musicTracks)track.pause()}
 function updateMusicMix(dt){if(wanted>0&&musicEnabled&&playing&&!paused&&!storeOpen&&!chaseFallback){if(chaseMusic.paused||chaseMusic.readyState<2)chaseLoadWait+=dt;else chaseLoadWait=0;if(chaseLoadWait>8&&chaseMusic.error){chaseFallback=true;musicToggle.textContent="♫ CHASE AUDIO ERROR";chaseSynthNext=0}}else chaseLoadWait=0;updateChaseSynth();const target=desiredMusic();if(target!==activeMusic){activeMusic=target;for(const track of musicTracks)if(track!==target){track.pause();track.volume=0}startMusic(target)}if(target&&target.paused)startMusic(target);for(const track of musicTracks){const volume=track===target?.55:0;track.volume+=(volume-track.volume)*Math.min(1,dt*2.4);if(track!==target&&track.volume<.003&&!track.paused){track.pause();track.volume=0}}}
 /* Beat-reactive visuals: analyse the music already playing; never change physics coordinates. */
 let beatContext=null,beatAnalyser=null,beatSamples=null,beatNodes=[],beatEnergy=0,beatPulse=0,beatBaseline=.08,beatCooldown=0,beatTime=0;
@@ -592,8 +592,8 @@ for(let i=0;i<segments;i+=3){const z=22-i*3,t=i*.115,x=heavenCurve(t);for(const 
 for(let i=0;i<160;i++){const m=new T.Mesh(new T.SphereGeometry(.07+Math.random()*.13,5,4),new T.MeshBasicMaterial({color:0xffffff}));m.position.set((Math.random()-.5)*190,25+Math.random()*90,(Math.random()-.5)*450);heavenStars.add(m)}popup("🌤️ HIGHWAY TO HEAVEN! KEEP YOUR SPEED UP")}
 function updateHeaven(dt){for(let i=starBursts.length-1;i>=0;i--){const b=starBursts[i];b.t-=dt;const p=1-b.t/.85;b.g.scale.setScalar(1+p*1.8);for(const r of b.rays)r.m.position.set(Math.cos(r.a)*(1+p*5),Math.sin(r.a)*(1+p*5),0);b.flash.scale.setScalar(1+p*2);b.mat.opacity=Math.max(0,(1-p)*1.2);if(b.t<=0){scene.remove(b.g);starBursts.splice(i,1)}}
  if(heavenGateDelay>0&&superJump&&airTime>0){heavenGateDelay-=dt;if(heavenGateDelay<=0)makeHeavenGate()}
- if(heavenGate){heavenGateApproach+=dt;const progress=Math.min(1,heavenGateApproach/2.5);heavenGate.position.z=bike.position.z-140*(1-progress);heavenGate.position.y+=(bike.position.y+3-heavenGate.position.y)*Math.min(1,dt*2.6);heavenGate.rotation.z=Math.sin(heavenGateApproach*.5)*.025;
- if(progress>=1){if(superJump&&airTime>0&&Math.abs(heavenGate.position.x-bike.position.x)<9&&Math.abs(heavenGate.position.y-bike.position.y)<9)enterHeaven();else{scene.remove(heavenGate);heavenGate=null}}}
+ if(heavenGate){heavenGateApproach+=dt;const progress=Math.min(1,heavenGateApproach/3.8);heavenGate.position.z=bike.position.z-140*(1-progress);heavenGate.position.y+=(Math.max(35,bike.position.y+3)-heavenGate.position.y)*Math.min(1,dt*1.7);heavenGate.rotation.z=Math.sin(heavenGateApproach*.5)*.025;
+ if(progress>=1){if(superJump&&airTime>0&&Math.abs(heavenGate.position.x-bike.position.x)<11&&Math.abs(heavenGate.position.y-bike.position.y)<14)enterHeaven();else{scene.remove(heavenGate);heavenGate=null}}}
  if(heavenTime<=0)return;heavenTime-=dt;heavenClock+=dt;const curve=heavenCurve(heavenClock*1.6);
  if(heavenRoad){heavenRoad.position.set(bike.position.x-curve,bike.position.y-2,bike.position.z-5);heavenRoad.rotation.z=Math.cos(heavenClock*1.6)*.07}
  if(heavenStars)heavenStars.position.set(bike.position.x,bike.position.y,bike.position.z-60);
@@ -605,7 +605,7 @@ function spawnSkyStar(zOffset=180){if(stars.length>=85)return;const g=new T.Grou
  const x=[-13,-8,-3,3,8,13][Math.floor(Math.random()*6)];
  g.position.set(x,Math.max(12,bike.position.y+(.5-Math.random())*9),bike.position.z-zOffset);
  scene.add(g);stars.push({g})}
-function spawnBoostStars(){for(let i=0;i<18;i++)spawnSkyStar(110+i*17);heavenGateDelay=4.4}
+function spawnBoostStars(){for(let i=0;i<18;i++)spawnSkyStar(110+i*17);heavenGateDelay=2.7}
 function updateSkyStarSupply(dt){if(!playing||paused||storeOpen||airTime<=0||!superJump)return;skyStarClock-=dt;if(skyStarClock<=0){skyStarClock=.36;spawnSkyStar(160+Math.random()*80)}}
 
 let countryClock=0,countryNext=48,countryScene=null,countryCooldown=0;
