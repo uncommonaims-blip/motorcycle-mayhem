@@ -935,7 +935,7 @@ function fireAlienPhoton(){
 alienFire.onclick=fireAlienPhoton;
 addEventListener('keydown',e=>{if(e.repeat)return;if(e.key.toLowerCase()==='t')alienTransformBike();if(e.key.toLowerCase()==='f')fireAlienPhoton()});
 function alienRelease(subject){
- if(subject.type==='bike'){alienAbduction=0;alienUnlocked=true;alienHover=false;alienControls.classList.add('unlocked');alienTransform.textContent='🛸 TRANSFORM';bike.visible=true;bike.position.y=mountainHeightAt(bike.position.x,bike.position.z);popup('👽 ALIEN UPGRADE! TAP TRANSFORM TO HOVER & FIRE PHOTONS!');return}
+ if(subject.type==='bike'){alienAbduction=0;alienUnlocked=true;alienHover=false;alienControls.classList.add('unlocked');alienTransform.textContent='🛸 TRANSFORM';bike.position.set(T.MathUtils.clamp(subject.returnX??0,-9,9),0,8);bike.position.y=mountainHeightAt(bike.position.x,bike.position.z);bike.rotation.set(0,0,0);bike.visible=true;rider.visible=false;crashTimer=0;popup('👽 ALIEN UPGRADE! TAP TRANSFORM TO HOVER & FIRE PHOTONS!');return}
  if(subject.type==='car'){subject.obj.alienCar=true;subject.obj.crashed=false;subject.obj.g.visible=true;subject.obj.g.position.y=1;subject.obj.v=90;subject.obj.vx=(Math.random()-.5)*10;subject.obj.g.traverse(o=>{if(o.isMesh&&o.material&&o.material.color)o.material.color.lerp(new T.Color(0x56ffea),.55)});popup('👽 ALIEN CAR RELEASED!');return}
  if(subject.type==='yeti'){subject.obj.mode='retreat';subject.obj.timer=5;subject.obj.cooldown=12;subject.obj.g.visible=true;subject.obj.g.position.y=mountainHeightAt(subject.obj.g.position.x,subject.obj.g.position.z);popup('👽 YETI RETURNED FROM SPACE!')}
 }
@@ -952,11 +952,11 @@ function updateAlienMayhem(dt){
   if(active){
    u.beam.material.opacity=.16+Math.sin(u.age*11)*.035;
    const bx=u.g.position.x,bz=u.g.position.z;
-   if(alienAbduction<=0&&crashTimer<=0&&Math.hypot(bike.position.x-bx,bike.position.z-bz)<6.5){alienAbduction=4.1;alienHover=false;alienTransform.textContent='🛸 TRANSFORM';u.subjects.add(bike);alienFloating.push({type:'bike',obj:bike,originY:bike.position.y,progress:0,life:4.1,ufo:u});popup('👽 ABDUCTED! ALIEN EXPERIMENT IN PROGRESS!')}
+   if(alienAbduction<=0&&!u.subjects.has(bike)&&crashTimer<=0&&Math.hypot(bike.position.x-bx,bike.position.z-bz)<6.5){alienAbduction=4.1;alienHover=false;alienTransform.textContent='🛸 TRANSFORM';u.subjects.add(bike);alienFloating.push({type:'bike',obj:bike,originY:bike.position.y,returnX:bike.position.x,progress:0,life:4.1,ufo:u});popup('👽 ABDUCTED! ALIEN EXPERIMENT IN PROGRESS!')}
    for(const car of cars){if(car.alienTaken||car.crashed)continue;if(Math.hypot(car.g.position.x-bx,car.g.position.z-bz)<6){car.alienTaken=true;u.subjects.add(car);alienFloating.push({type:'car',obj:car,originY:car.g.position.y,progress:0,life:4.4,ufo:u})}}
    for(const yeti of mountainYetis){if(yeti.alienTaken)continue;if(Math.hypot(yeti.g.position.x-bx,yeti.g.position.z-bz)<6){yeti.alienTaken=true;u.subjects.add(yeti);alienFloating.push({type:'yeti',obj:yeti,originY:yeti.g.position.y,progress:0,life:4.4,ufo:u})}}
   }
-  if(u.age>10){scene.remove(u.g);ufo=null}
+  if(u.age>10&&!alienFloating.some(a=>a.ufo===u)){scene.remove(u.g);ufo=null}
  }
  for(let i=alienFloating.length-1;i>=0;i--){
   const a=alienFloating[i],obj=a.obj.g||a.obj;a.progress+=dt;a.life-=dt;
@@ -977,7 +977,7 @@ function updateAlienMayhem(dt){
  }
 }
 function resetAlienMayhem(){
- if(ufo){scene.remove(ufo.g);ufo=null}for(const a of alienFloating){if(a.type!=='bike'){a.obj.alienTaken=false;a.obj.g.visible=true;a.obj.g.rotation.set(0,0,0)}}alienFloating.length=0;
+ if(ufo){scene.remove(ufo.g);ufo=null}for(const a of alienFloating){if(a.type!=='bike'){a.obj.alienTaken=false;a.obj.g.visible=true;a.obj.g.rotation.set(0,0,0)}}alienFloating.length=0;bike.visible=true;bike.rotation.set(0,0,0);
  for(const b of alienBolts){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose()}alienBolts.length=0;
  ufoClock=0;ufoNext=20+Math.random()*12;alienUnlocked=false;alienHover=false;alienAbduction=0;alienFireCooldown=0;alienControls.classList.remove('unlocked');alienTransform.textContent='🛸 TRANSFORM';for(const w of alienWheels)w.rotation.z=0;
  for(const car of cars){car.alienTaken=false;car.alienCar=false}
