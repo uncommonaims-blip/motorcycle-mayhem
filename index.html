@@ -900,7 +900,7 @@ function spawnUfo(){
  for(let i=0;i<10;i++){const light=new T.Mesh(new T.SphereGeometry(.32,6,5),alienMat(i%2?0xff68f4:0x67fff0));const a=i*Math.PI/5;light.position.set(Math.cos(a)*5.4,-.65,Math.sin(a)*5.4);g.add(light)}
  const beam=new T.Mesh(new T.CylinderGeometry(1.5,6.5,32,16,1,true),new T.MeshBasicMaterial({color:0x75fff0,transparent:true,opacity:.19,side:T.DoubleSide,depthWrite:false}));beam.position.y=-17;g.add(beam);
  const floor=new T.Mesh(new T.CircleGeometry(6.5,20),alienMat(0x6affef,.24));floor.rotation.x=-Math.PI/2;floor.position.y=-33;g.add(floor);
- g.position.set(Math.random()<.5?-8:8,34,-90);scene.add(g);ufo={g,beam,floor,age:0,beamStart:2,beamEnd:7,targetX:(Math.random()-.5)*28,subjects:new Set()};popup('🛸 UFO SIGHTED — WATCH THE TRACTOR BEAM!');
+ g.position.set(Math.random()<.5?-8:8,34,-55);scene.add(g);ufo={g,beam,floor,age:0,beamStart:2,beamEnd:7,targetX:(Math.random()-.5)*28,subjects:new Set()};popup('🛸 UFO SIGHTED — WATCH THE TRACTOR BEAM!');
 }
 function alienTransformBike(){if(!alienUnlocked||!playing||paused||crashTimer>0||alienAbduction>0)return;alienHover=!alienHover;alienTransform.textContent=alienHover?'🏍️ LAND':'🛸 TRANSFORM';popup(alienHover?'🛸 HOVER MODE — GLIDE ABOVE TRAFFIC!':'🏍️ ROAD MODE');}
 alienTransform.onclick=alienTransformBike;
@@ -924,7 +924,7 @@ function updateAlienMayhem(dt){
  if(ufo){
   const u=ufo;u.age+=dt;const active=u.age>=u.beamStart&&u.age<u.beamEnd;
   u.beam.visible=u.floor.visible=active;
-  u.g.position.z+=speed*.19*dt*.45;
+  u.g.position.z+=Math.max(70,speed)*.19*dt;
   u.g.position.x=T.MathUtils.damp(u.g.position.x,u.targetX,1.2,dt);
   u.g.rotation.y+=dt*.35;
   if(active){
