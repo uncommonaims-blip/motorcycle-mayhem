@@ -184,6 +184,8 @@ renderer.localClippingEnabled=true;const mandalaHorizon=new T.Plane(new T.Vector
 
 const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycle=0;const starField=new T.Group();scene.add(starField);const skyStarMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false});const skyStarGeometry=new T.SphereGeometry(.16,4,3);for(let i=0;i<95;i++){const dot=new T.Mesh(skyStarGeometry,skyStarMat);dot.position.set((Math.random()-.5)*330,50+Math.random()*110,-140-Math.random()*100);starField.add(dot)}
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
+const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
+function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95}}
 function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),radius=o.radius*o.mesh.scale.x;if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const surface=base+coneHeight*(1-distance/radius);height=Math.max(height,surface)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
@@ -199,7 +201,7 @@ for(const side of [-1,1]){
   const w=34+scenerySeed(i+side*31)*28,h=18+scenerySeed(i+side*47)*30;
   const mesh=new T.Mesh(new T.ConeGeometry(w*.65,h,5),mountainMat);
   mesh.position.set(side*(88+i%3*19),h*.43-3,-20-i*22);
-  sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h});
+  mesh.material=mountainMat.clone();mesh.material.transparent=true;sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h});
  }
  for(let i=0;i<30;i++){
   const layer=i%3,z=25-Math.floor(i/3)*38-layer*8,dist=[23,43,68][layer]+scenerySeed(i+side*83)*[10,13,16][layer];
@@ -822,7 +824,7 @@ mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+sh
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*175;
 nightHeadlight.intensity=nightAmount*95;headlight.material.color.setHex(nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
-updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainVisibility(dt);renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
 <div id="beatIndicator" style="display:none;position:fixed;top:16%;left:50%;transform:translateX(-50%);z-index:8;background:rgba(45,22,67,.82);border:1px solid #d787ec;border-radius:18px;padding:6px 13px;color:#ffdcfa;font:bold 13px system-ui;pointer-events:none;white-space:nowrap">🎵 BEAT MODE</div>
 <div id="rideInventory" style="position:fixed;bottom:calc(108px + env(safe-area-inset-bottom,0px));right:12px;left:auto;transform:none;z-index:9;display:flex;gap:6px;pointer-events:auto;align-items:center;flex-direction:row-reverse"><button id="stashToggle" style="padding:10px;border-radius:12px;background:#3a4b69;color:white">🎒 STASH</button><button id="drinkBeer" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍺 0</button><button id="eatMushroom" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍄 0</button><span id="starHud" style="background:#142c48b8;padding:10px;border-radius:12px;color:#ffe16c">⭐ 0/5 · ♥ 0</span></div><button id="gameUpdateButton" type="button">↻ UPDATE GAME</button><div id="gameUpdateMessage" role="status"></div>
