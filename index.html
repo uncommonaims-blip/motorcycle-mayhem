@@ -988,40 +988,44 @@ function resetAlienMayhem(){
 let gorgeClock=0,gorgeNext=55,gorge=null,gorgeFall=0;
 function createGorge(){
  const group=new T.Group();scene.add(group);
- const stone=new T.MeshLambertMaterial({color:0x665b50,flatShading:true}),dark=new T.MeshBasicMaterial({color:0x080e19}),deckMat=new T.MeshLambertMaterial({color:0x555963}),cableMat=new T.MeshBasicMaterial({color:0xb9c4c9});
- // Dark canyon floor covers the normal ground while the span is active.
- cube(250,.3,250,dark,0,-2,0,group);
- for(const side of [-1,1]){
-  cube(85,55,255,stone,side*98,-25,0,group);
-  for(let j=0;j<12;j++){
-   const rock=cube(9+Math.random()*7,6+Math.random()*9,9+Math.random()*9,stone,side*(30+j%3*9),2,(j-6)*8,group);
-   rock.rotation.y=Math.random()*.6;
+ const rockMat=new T.MeshLambertMaterial({color:0x75675b,flatShading:true,side:T.DoubleSide});
+ const cliffMat=new T.MeshLambertMaterial({color:0x8b7969,flatShading:true,side:T.DoubleSide});
+ const voidMat=new T.MeshBasicMaterial({color:0x080d16,depthWrite:true,side:T.DoubleSide});
+ const deckMat=new T.MeshLambertMaterial({color:0x555963,side:T.DoubleSide});
+ const cableMat=new T.MeshBasicMaterial({color:0xb9c4c9});
+ // A transverse ravine: its long axis runs LEFT-RIGHT across the highway.
+ // Opaque dark opening covers the old road/ground; the actual bridge deck sits ABOVE it.
+ const opening=cube(420,.15,246,voidMat,0,.28,0,group);
+ // Recessed far bottom gives the opening depth, visible beside the narrow bridge.
+ cube(420,.12,246,new T.MeshLambertMaterial({color:0x22232b}),0,-52,0,group);
+ // Cliff banks at either END of the crossing, not along the bridge sides.
+ for(const bank of [-1,1]){
+  cube(420,48,26,rockMat,0,-24,bank*136,group);
+  for(let j=0;j<26;j++){
+   const x=(j-12.5)*17;
+   const rock=cube(11+Math.random()*9,12+Math.random()*24,12+Math.random()*8,cliffMat,x,-9-Math.random()*10,bank*(120+Math.random()*12),group);
+   rock.rotation.y=Math.random()*.4;
   }
  }
- // Elevated road deck, open edges, cross-bracing and suspended cables.
- cube(24,.18,252,deckMat,0,-.015,0,group);
- for(let z=-120;z<=120;z+=12)cube(24,.09,.5,cableMat,0,.11,z,group);
+ // Bridge travels forward along Z, perpendicular to the ravine's X axis.
+ cube(24,.38,256,deckMat,0,.78,0,group);
+ for(let z=-124;z<=124;z+=12)cube(24,.12,.5,cableMat,0,1.05,z,group);
  for(const side of [-1,1]){
-  for(const z of [-102,102]){
-   cube(1.5,24,1.8,stone,side*13,14,z,group);
-   cube(2.1,2.2,3,stone,side*13,25.5,z,group);
+  for(const z of [-105,105]){
+   cube(1.5,24,1.8,rockMat,side*13,13.4,z,group);
+   cube(2.1,2.2,3,rockMat,side*13,25.5,z,group);
   }
-  for(let z=-122;z<=122;z+=6){
-   const t=Math.abs(z)/122;
-   const cableY=15+12*t*t;
-   const cable=cube(.18,.18,4.6,cableMat,side*13,cableY,z,group);
+  for(let z=-125;z<=125;z+=6){
+   const t=Math.abs(z)/125,cableY=15+12*t*t;
+   const cable=cube(.18,.18,6.2,cableMat,side*13,cableY,z,group);
    cable.rotation.x=(z>0?1:-1)*.12;
-   cube(.09,Math.max(.2,cableY),.09,cableMat,side*13,cableY/2,z,group);
+   cube(.09,Math.max(.2,cableY-1),.09,cableMat,side*13,(cableY+1)/2,z,group);
   }
  }
- // Broken roadway near each end: bridge ramps allow approach without a teleport.
- for(const side of [-1,1]){
-  const ramp=cube(24,.12,20,deckMat,0,-.015,side*135,group);
-  ramp.rotation.x=0;
- }
+ for(const side of [-1,1])cube(24,.3,18,deckMat,0,.48,side*137,group);
  group.position.z=-190;
- gorge={group,triggered:false,falling:false};
- popup('🌉 SUSPENSION BRIDGE AHEAD — WATCH THE EDGES!');
+ gorge={group,opening,triggered:false,falling:false};
+ popup('🌉 HUGE CANYON AHEAD — STAY ON THE BRIDGE!');
 }
 function updateGorge(dt){
  if(!playing||paused)return;
@@ -1031,19 +1035,25 @@ function updateGorge(dt){
  const g=gorge;
  g.group.position.z+=Math.max(30,speed)*.19*dt;
  const dz=bike.position.z-g.group.position.z;
- const across=Math.abs(dz)<126;
- const ramp=Math.abs(dz)>=126&&Math.abs(dz)<146;
+ const across=Math.abs(dz)<128,approach=Math.abs(dz)>=128&&Math.abs(dz)<148;
  if(crashTimer<=0&&alienAbduction<=0&&airTime<=0&&!alienHover){
-  if(across&&Math.abs(bike.position.x)<10.5){bike.position.y=T.MathUtils.damp(bike.position.y,0,9,dt);g.triggered=true}
-  else if(ramp&&Math.abs(bike.position.x)<10.5){bike.position.y=T.MathUtils.damp(bike.position.y,0,9,dt)}
+  if(across&&Math.abs(bike.position.x)<11){bike.position.y=Math.max(bike.position.y,.96);g.triggered=true}
+  else if(approach&&Math.abs(bike.position.x)<11){bike.position.y=Math.max(bike.position.y,.5)}
   else if(across&&Math.abs(bike.position.x)>12.3&&!g.falling){
-   g.falling=true;gorgeFall=1.5;popup('⚠️ OVER THE EDGE!'); 
+   g.falling=true;gorgeFall=1.5;popup('⚠️ OVER THE EDGE!');
+  }
+ }
+ // Keep highway traffic visibly on top of the bridge, not buried beneath it.
+ if(across||approach){
+  for(const car of cars){
+   const cz=car.g.position.z-g.group.position.z;
+   if(Math.abs(cz)<128&&Math.abs(car.g.position.x)<11.5&&!car.crashed)car.g.position.y=Math.max(car.g.position.y,1.05);
   }
  }
  if(g.falling&&crashTimer<=0){gorgeFall-=dt;bike.position.y-=dt*19;bike.rotation.z+=dt*4;
   if(gorgeFall<=0){g.falling=false;mountainCrash=true;eject(45);popup('💥 GORGE CRASH!')}
  }
- if(g.group.position.z>190){scene.remove(g.group);gorge=null;gorgeFall=0}
+ if(g.group.position.z>205){scene.remove(g.group);gorge=null;gorgeFall=0}
 }
 function resetGorge(){if(gorge){scene.remove(gorge.group);gorge=null}gorgeClock=0;gorgeNext=45+Math.random()*25;gorgeFall=0}
 
