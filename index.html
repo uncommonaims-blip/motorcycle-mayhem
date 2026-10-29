@@ -185,7 +185,7 @@ renderer.localClippingEnabled=true;const mandalaHorizon=new T.Plane(new T.Vector
 const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycle=0;const starField=new T.Group();scene.add(starField);const skyStarMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false});const skyStarGeometry=new T.SphereGeometry(.16,4,3);for(let i=0;i<95;i++){const dot=new T.Mesh(skyStarGeometry,skyStarMat);dot.position.set((Math.random()-.5)*330,50+Math.random()*110,-140-Math.random()*100);starField.add(dot)}
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
 const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
-function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95}}
+function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;for(const cap of o.mesh.children){cap.material.opacity=o.mesh.material.opacity;cap.material.depthWrite=o.mesh.material.depthWrite}}}
 function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),radius=o.radius*o.mesh.scale.x;if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const surface=base+coneHeight*(1-distance/radius);height=Math.max(height,surface)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
@@ -199,7 +199,10 @@ function scenerySeed(n){const v=Math.sin(n*127.1+18.73)*43758.5453;return v-Math
 for(const side of [-1,1]){
  for(let i=0;i<13;i++){
   const w=34+scenerySeed(i+side*31)*28,h=18+scenerySeed(i+side*47)*30;
-  const mesh=new T.Mesh(new T.ConeGeometry(w*.65,h,5),mountainMat);
+  const mesh=new T.Mesh(new T.ConeGeometry(w*.65,h,10,2),mountainMat);
+  const snowHeight=h*.27,snowRadius=w*.65*(snowHeight/h);
+  const snow=new T.Mesh(new T.ConeGeometry(snowRadius*1.015,snowHeight,10,2),new T.MeshLambertMaterial({color:0xf1f6fa,flatShading:true,transparent:true,depthWrite:true,side:T.DoubleSide}));
+  snow.position.y=h*.5-snowHeight*.5+.02;mesh.add(snow);
   mesh.position.set(side*(88+i%3*19),h*.43-3,-20-i*22);
   mesh.material=mountainMat.clone();mesh.material.transparent=true;sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h});
  }
