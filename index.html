@@ -472,7 +472,9 @@ const steeringTouches=new Map();
 document.addEventListener('pointerdown',e=>{
  if(e.pointerType==='mouse'||!playing||paused||storeOpen||e.target.closest('button,#overlay,#store,#miniGame,#hud,#healthPanel,#speedGauge,#musicToggle,#gameUpdateButton,#gameUpdateMessage,#rushBanner'))return;
  const controls=document.getElementById('controls').getBoundingClientRect();
- if(e.clientY>=controls.top-12||e.clientY<Math.max(100,innerHeight*.12))return;
+ // Reserve the upper playfield for tapping jets and other targets; touch steering is limited to the band immediately above the on-screen controls.
+ const steeringTop=Math.max(innerHeight*.69,controls.top-165);
+ if(rocketArmed||e.clientY<steeringTop||e.clientY>=controls.top-12)return;
  const direction=e.clientX<innerWidth/2?'left':'right';
  steeringTouches.set(e.pointerId,direction);keys[direction]=true;e.preventDefault();
 },{passive:false});
