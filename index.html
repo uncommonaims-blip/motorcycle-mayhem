@@ -185,7 +185,7 @@ renderer.localClippingEnabled=true;const mandalaHorizon=new T.Plane(new T.Vector
 const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycle=0;const starField=new T.Group();scene.add(starField);const skyStarMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false});const skyStarGeometry=new T.SphereGeometry(.16,4,3);for(let i=0;i<95;i++){const dot=new T.Mesh(skyStarGeometry,skyStarMat);dot.position.set((Math.random()-.5)*330,50+Math.random()*110,-140-Math.random()*100);starField.add(dot)}
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
 const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
-function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;o.mesh.traverse(child=>{if(child===o.mesh||!child.isMesh||!child.material)return;child.material.opacity=o.mesh.material.opacity;child.material.depthWrite=o.mesh.material.depthWrite})}}
+function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;o.mesh.traverse(child=>{if(child===o.mesh||!child.isMesh||!child.material)return;child.material.opacity=o.mesh.material.opacity;child.material.depthWrite=o.mesh.material.depthWrite})}}
 function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),radius=o.radius*o.mesh.scale.x;if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const surface=base+coneHeight*(1-distance/radius);height=Math.max(height,surface)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
@@ -195,7 +195,7 @@ const nearTreeMat=new T.MeshLambertMaterial({color:0x235b34,flatShading:true});
 const trunkMat=new T.MeshLambertMaterial({color:0x6c533e});
 const bladeMat=new T.MeshLambertMaterial({color:0x69a446,side:T.DoubleSide});
 const sceneryParts={mountains:[],trees:[],grass:[]};
-const mountainYetis=[];
+const mountainYetis=[],mountainCaves=[],yetiMushrooms=[];let caveRide=null,caveCooldown=0,yetiHitCooldown=0;
 function buildMountainCave(mountain,radius,height,seed){
  const cave=new T.Group(),floor=-height*.43+1.8,front=radius*.79;
  cave.position.set(0,floor,front);mountain.add(cave);
@@ -208,6 +208,14 @@ function buildMountainCave(mountain,radius,height,seed){
   spike.position.set(x,top?3.4-length*.5:-3.4+length*.5,.58);
   spike.rotation.z=top?Math.PI:0;cave.add(spike);
  }
+ const tunnel=new T.Group();tunnel.visible=false;scene.add(tunnel);
+ const tunnelMat=new T.MeshLambertMaterial({color:0x343a48,side:T.BackSide,flatShading:true});
+ const shell=new T.Mesh(new T.CylinderGeometry(5,5,115,12,12,true),tunnelMat);shell.rotation.x=Math.PI/2;shell.position.z=-45;tunnel.add(shell);
+ const floorMesh=new T.Mesh(new T.BoxGeometry(10,.3,115),new T.MeshLambertMaterial({color:0x66616a}));floorMesh.position.set(0,-4.6,-45);tunnel.add(floorMesh);
+ const spikeMat=new T.MeshLambertMaterial({color:0x8d8c96,flatShading:true});
+ for(let k=0;k<32;k++){const z=-5-k*3.2,x=(k%5-2)*1.7,length=.5+scenerySeed(seed*37+k)*1.9;
+  const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?Math.PI:0;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);tunnel.add(spike)}
+ mountainCaves.push({mountain,cave,tunnel,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
  return cave;
 }
 function makeYeti(mountain,seed){
@@ -223,22 +231,48 @@ function makeYeti(mountain,seed){
  }
  const spawnX=mountain.position.x+(seed%3-1)*5,spawnZ=mountain.position.z+4;
  g.position.set(spawnX,0,spawnZ);scene.add(g);
- mountainYetis.push({g,homeX:spawnX,homeZ:spawnZ,phase:seed*1.7,alert:false});
+ mountainYetis.push({g,homeX:spawnX,homeZ:spawnZ,phase:seed*1.7,alert:false,mode:'lurk',timer:0,cooldown:0});
+}
+function inMountainZone(){return Math.abs(bike.position.x)>42&&sceneryParts.mountains.some(o=>Math.hypot(bike.position.x-o.mesh.position.x,bike.position.z-o.mesh.position.z)<o.radius+35)}
+function dropYetiMushroom(){
+ if(mushroomStock<=0)return false;mushroomStock--;refreshStash();
+ const g=new T.Group(),cap=new T.Mesh(new T.SphereGeometry(.75,9,6),new T.MeshLambertMaterial({color:0xf04c64})),stem=new T.Mesh(new T.CylinderGeometry(.2,.25,.8,7),new T.MeshLambertMaterial({color:0xf8e7ca}));
+ cap.position.y=.8;stem.position.y=.3;g.add(cap,stem);g.position.set(bike.position.x,mountainHeightAt(bike.position.x,bike.position.z),bike.position.z+4);scene.add(g);
+ yetiMushrooms.push({g,life:18});popup("🍄 MUSHROOM BAIT — YETIS DISTRACTED!");return true;
 }
 function updateMountainYetis(dt){
  if(!playing||paused)return;
- for(const y of mountainYetis){
-  y.homeZ+=speed*.19*dt*.12;
-  const distance=Math.hypot(y.g.position.x-bike.position.x,y.g.position.z-bike.position.z);
-  if(distance<58&&Math.abs(bike.position.x)>35)y.alert=true;
-  if(y.alert&&distance<130){
-   const dx=bike.position.x-y.g.position.x,dz=bike.position.z-y.g.position.z,d=Math.max(1,Math.hypot(dx,dz)),pace=6+Math.min(6,speed*.025);
-   y.g.position.x+=dx/d*pace*dt;y.g.position.z+=dz/d*pace*dt;
-   y.g.rotation.y=Math.atan2(dx,dz);
-   y.phase+=dt*10;y.g.rotation.z=Math.sin(y.phase)*.12;
-  }else{y.g.position.z+=speed*.19*dt*.12;y.g.position.x+=(y.homeX-y.g.position.x)*Math.min(1,dt*.3);y.phase+=dt*2;y.g.rotation.z=Math.sin(y.phase)*.04}
-  y.g.position.y=mountainHeightAt(y.g.position.x,y.g.position.z)+Math.abs(Math.sin(y.phase))*.14;
-  if(distance>360){y.alert=false;y.g.position.set(y.homeX,0,y.homeZ)}
+ yetiHitCooldown=Math.max(0,yetiHitCooldown-dt);
+ for(let i=yetiMushrooms.length-1;i>=0;i--){const m=yetiMushrooms[i];m.life-=dt;m.g.position.z+=speed*.19*dt*.12;if(m.life<=0){scene.remove(m.g);yetiMushrooms.splice(i,1)}}
+ let active=0;
+ for(const y of mountainYetis){y.timer=Math.max(0,y.timer-dt);y.cooldown=Math.max(0,y.cooldown-dt);y.homeZ+=speed*.19*dt*.12;
+  const dx=bike.position.x-y.g.position.x,dz=bike.position.z-y.g.position.z,dist=Math.hypot(dx,dz);
+  const bait=yetiMushrooms.find(m=>Math.hypot(m.g.position.x-y.g.position.x,m.g.position.z-y.g.position.z)<34);
+  if(bait){y.mode='feed';y.timer=8;y.alert=false}
+  if(y.mode==='feed'){
+   if(bait){const bx=bait.g.position.x-y.g.position.x,bz=bait.g.position.z-y.g.position.z,bd=Math.max(1,Math.hypot(bx,bz));y.g.position.x+=bx/bd*dt*6;y.g.position.z+=bz/bd*dt*6;if(bd<2.8){scene.remove(bait.g);yetiMushrooms.splice(yetiMushrooms.indexOf(bait),1);y.timer=12}}
+   if(y.timer<=0){y.mode='lurk';y.cooldown=12}
+  }else if((y.mode==='stalk'||y.mode==='lunge')&&active<3){
+   active++;const pace=y.mode==='lunge'?25:7;
+   y.g.position.x+=dx/Math.max(1,dist)*pace*dt;y.g.position.z+=dz/Math.max(1,dist)*pace*dt;
+   y.g.rotation.y=Math.atan2(dx,dz);y.phase+=dt*(y.mode==='lunge'?19:8);
+   if(y.mode==='stalk'&&dist<17&&y.cooldown<=0){y.mode='lunge';y.timer=.8;popup('⚠️ YETI LUNGE — DODGE!')}
+   if(y.mode==='lunge'){if(dist<2.5&&yetiHitCooldown<=0&&crashTimer<=0){yetiHitCooldown=3;eject(30);y.mode='retreat';y.timer=5}if(y.timer<=0){y.mode='retreat';y.timer=5;y.cooldown=9}}
+   if(dist>115){y.mode='retreat';y.timer=4}
+  }else if(y.mode==='lurk'&&dist<65&&inMountainZone()&&active<3&&y.cooldown<=0){y.mode='stalk';y.timer=6;active++}
+  else if(y.mode==='retreat'){y.g.position.x+=(y.homeX-y.g.position.x)*Math.min(1,dt*.6);if(y.timer<=0){y.mode='lurk';y.cooldown=8}}
+  else if(y.mode==='lurk'){y.g.position.x+=(y.homeX-y.g.position.x)*Math.min(1,dt*.4);y.g.position.z+=speed*.19*dt*.12}
+  y.g.rotation.z=Math.sin(y.phase+=dt*2)*.08;
+  y.g.position.y=mountainHeightAt(y.g.position.x,y.g.position.z)+Math.abs(Math.sin(y.phase))*.12;
+  if(dist>350){y.mode='lurk';y.cooldown=3;y.g.position.set(y.homeX,0,y.homeZ)}
+ }
+}
+function updateCaveRide(dt){
+ caveCooldown=Math.max(0,caveCooldown-dt);
+ if(caveRide){const ride=caveRide;ride.time+=dt;ride.tunnel.position.z+=speed*.19*dt;bike.position.y=Math.max(0,bike.position.y);if(ride.time>9||ride.tunnel.position.z>125){ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;popup('🏔️ CAVE EXIT!')}return}
+ if(!playing||paused||caveCooldown>0||airTime>0)return;
+ for(const cave of mountainCaves){const entryX=cave.mountain.position.x,entryZ=cave.mountain.position.z+cave.radius*.79;
+  if(Math.abs(bike.position.x-entryX)<3.6&&Math.abs(bike.position.z-entryZ)<5){caveRide={...cave,time:0};cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);cave.tunnel.visible=true;cave.mountain.visible=false;popup('🦇 ENTERING MOUNTAIN CAVE!');break}
  }
 }
 function scenerySeed(n){const v=Math.sin(n*127.1+18.73)*43758.5453;return v-Math.floor(v)}
@@ -734,7 +768,7 @@ const drinkButton=document.getElementById("drinkBeer"),mushButton=document.getEl
 stashExtra.addEventListener("pointerdown",scheduleStashClose);drinkButton.addEventListener("pointerdown",scheduleStashClose);mushButton.addEventListener("pointerdown",scheduleStashClose);document.getElementById("useRocket").onclick=()=>{if(!playing||paused||!rocketStock)return;rocketArmed=!rocketArmed;popup(rocketArmed?"🚀 TAP A JET — ROCKET IS NOT HOMING":"🚀 ROCKET STOWED");refreshStash()};document.getElementById("useMed").onclick=()=>{if(!playing||paused||medStock<=0||health>=100)return;medStock--;health=Math.min(100,health+35);popup("🧰 FIRST AID +35 HP");refreshStash()};
 document.getElementById("useGas").onclick=()=>{if(!playing||paused||gasStock<=0||fuel>=99.5)return;gasStock--;fuel=Math.min(100,fuel+50);fuelStrandedTime=0;popup("⛽ EMERGENCY REFUEL +50%");refreshStash()};
 document.getElementById("useWeed").onclick=()=>{if(!playing||paused||weedStock<=0)return;weedStock--;weedLevel=Math.min(3,weedLevel+1);weedTimer=55;beatTime=0;beatPulse=1;enableBeatAudio();if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});spawnWeedPuff();popup("🌿 BEAT REACTIVE MODE "+weedLevel);refreshStash()};
-function consumeItem(kind){if(!playing||paused||(kind==="beer"&&consuming>0))return;if(kind==="beer"){if(beerStock<=0)return;beerStock--}else{if(mushroomStock<=0)return;mushroomStock--}consumeKind=kind;refreshStash();consuming=1.35;consumableDelay.push({kind,time:kind==="mushroom"?.45:5});if(kind==="mushroom"){shroomLevel=Math.min(3,shroomLevel+1);shroomTimer=70;mushroomArmor=1;warmMusic();syncMotoMusic()}popup(kind==="beer"?"🍺 CHUG!":"🍄 MUNCH!")}
+function consumeItem(kind){if(!playing||paused||(kind==="beer"&&consuming>0))return;if(kind==="mushroom"&&inMountainZone()&&!caveRide){dropYetiMushroom();return;}if(kind==="beer"){if(beerStock<=0)return;beerStock--}else{if(mushroomStock<=0)return;mushroomStock--}consumeKind=kind;refreshStash();consuming=1.35;consumableDelay.push({kind,time:kind==="mushroom"?.45:5});if(kind==="mushroom"){shroomLevel=Math.min(3,shroomLevel+1);shroomTimer=70;mushroomArmor=1;warmMusic();syncMotoMusic()}popup(kind==="beer"?"🍺 CHUG!":"🍄 MUNCH!")}
 drinkButton.addEventListener("click",()=>consumeItem("beer"));mushButton.addEventListener("click",()=>consumeItem("mushroom"));
 const heldItem=new T.Group();bike.add(heldItem);heldItem.position.set(-.65,1.5,-.1);
 const heldCan=new T.Mesh(new T.CylinderGeometry(.16,.16,.46,9),material(0xa3b6d0)),heldShroom=new T.Mesh(new T.ConeGeometry(.22,.42,8),material(0xff74df));heldItem.add(heldCan,heldShroom);heldItem.visible=false;
@@ -873,7 +907,7 @@ mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+sh
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*175;
 nightHeadlight.intensity=nightAmount*95;headlight.material.color.setHex(nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
-updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateMountainVisibility(dt);renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateCaveRide(dt);updateMountainVisibility(dt);renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
 <div id="beatIndicator" style="display:none;position:fixed;top:16%;left:50%;transform:translateX(-50%);z-index:8;background:rgba(45,22,67,.82);border:1px solid #d787ec;border-radius:18px;padding:6px 13px;color:#ffdcfa;font:bold 13px system-ui;pointer-events:none;white-space:nowrap">🎵 BEAT MODE</div>
 <div id="rideInventory" style="position:fixed;bottom:calc(108px + env(safe-area-inset-bottom,0px));right:12px;left:auto;transform:none;z-index:9;display:flex;gap:6px;pointer-events:auto;align-items:center;flex-direction:row-reverse"><button id="stashToggle" style="padding:10px;border-radius:12px;background:#3a4b69;color:white">🎒 STASH</button><button id="drinkBeer" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍺 0</button><button id="eatMushroom" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍄 0</button><span id="starHud" style="background:#142c48b8;padding:10px;border-radius:12px;color:#ffe16c">⭐ 0/5 · ♥ 0</span></div><button id="gameUpdateButton" type="button">↻ UPDATE GAME</button><div id="gameUpdateMessage" role="status"></div>
