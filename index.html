@@ -187,7 +187,7 @@ const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycl
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
 const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
 function updateMountainVisibility(dt){mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;o.mesh.traverse(child=>{if(child===o.mesh||!child.isMesh||!child.material)return;child.material.opacity=o.mesh.material.opacity;child.material.depthWrite=o.mesh.material.depthWrite})}}
-function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),radius=o.radius*o.mesh.scale.x;if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const surface=base+coneHeight*(1-distance/radius);height=Math.max(height,surface)}return Math.max(0,height)}
+function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),angle=Math.atan2(dz,dx),radius=o.radius*o.mesh.scale.x*ridgeProfile(angle,o.seed||0);if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const rough=.035*Math.sin(distance*.65+angle*7+o.seed);const surface=base+coneHeight*Math.max(0,1-distance/radius)*(1+rough);height=Math.max(height,surface)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
 const mountainMat=new T.MeshLambertMaterial({color:0x8299ad,flatShading:true,side:T.DoubleSide});
@@ -292,16 +292,38 @@ function updateCaveRide(dt){
   if(Math.abs(bike.position.x-entryX)<3.6&&Math.abs(bike.position.z-entryZ)<5){caveRide={...cave,time:0};cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);cave.tunnel.visible=true;cave.mountain.visible=false;popup('🦇 ENTERING MOUNTAIN CAVE!');break}
  }
 }
+/* Low-poly jagged ridge geometry. The same radial profile drives rideable collision heights. */
+function ridgeProfile(angle,seed){
+ const v=Math.sin(angle*3+seed*1.7)*.13+Math.sin(angle*7-seed*.9)*.075+Math.sin(angle*11+seed*2.3)*.035;
+ return Math.max(.72,1+v);
+}
+function rockyMountainGeometry(radius,height,seed,snow=false){
+ const radial=18,vertical=snow?3:7,positions=[],indices=[];
+ for(let j=0;j<=vertical;j++){
+  const t=j/vertical;
+  for(let k=0;k<=radial;k++){
+   const angle=k/radial*Math.PI*2;
+   const ridge=ridgeProfile(angle,seed);
+   const tier=1+.065*Math.sin(j*2.9+angle*5+seed)+.035*Math.cos(j*5+angle*9);
+   const taper=Math.max(.025,1-t);
+   const radialDistance=radius*taper*ridge*tier;
+   const y=-height/2+t*height+Math.sin(angle*4+seed)*height*.024*(1-t);
+   positions.push(Math.cos(angle)*radialDistance,y,Math.sin(angle)*radialDistance);
+   if(j<vertical&&k<radial){const a=j*(radial+1)+k,b=a+radial+1;indices.push(a,b,a+1,b,b+1,a+1)}
+  }
+ }
+ const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
+}
 function scenerySeed(n){const v=Math.sin(n*127.1+18.73)*43758.5453;return v-Math.floor(v)}
 for(const side of [-1,1]){
  for(let i=0;i<13;i++){
   const w=34+scenerySeed(i+side*31)*28,h=18+scenerySeed(i+side*47)*30;
-  const mesh=new T.Mesh(new T.ConeGeometry(w*.65,h,10,2),mountainMat);
+  const seed=i+side*37;const mesh=new T.Mesh(rockyMountainGeometry(w*.65,h,seed),mountainMat);
   const snowHeight=h*.27,snowRadius=w*.65*(snowHeight/h);
-  const snow=new T.Mesh(new T.ConeGeometry(snowRadius*1.015,snowHeight,10,2),new T.MeshLambertMaterial({color:0xf1f6fa,flatShading:true,transparent:true,depthWrite:true,side:T.DoubleSide}));
+  const snow=new T.Mesh(rockyMountainGeometry(snowRadius*1.08,snowHeight,seed,true),new T.MeshLambertMaterial({color:0xf1f6fa,flatShading:true,transparent:true,depthWrite:true,side:T.DoubleSide}));
   snow.position.y=h*.5-snowHeight*.5+.02;mesh.add(snow);
   mesh.position.set(side*(88+i%3*19),h*.43-3,-20-i*22);
-  mesh.material=mountainMat.clone();mesh.material.transparent=true;if(i%2===0)buildMountainCave(mesh,w*.65,h,i+side*23);sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h});if(i%3===0)makeYeti(mesh,i+side*19);
+  mesh.material=mountainMat.clone();mesh.material.transparent=true;if(i%2===0)buildMountainCave(mesh,w*.65,h,i+side*23);sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h,seed});if(i%3===0)makeYeti(mesh,i+side*19);
  }
  for(let i=0;i<30;i++){
   const layer=i%3,z=25-Math.floor(i/3)*38-layer*8,dist=[23,43,68][layer]+scenerySeed(i+side*83)*[10,13,16][layer];
