@@ -179,8 +179,8 @@ for(let layer=0;layer<7;layer++){const r=34+layer*26,n=8+layer*4;for(let k=0;k<n
 const mandalaTexture=new T.CanvasTexture(mandalaCanvas);
 const sunsetPanel=new T.Mesh(new T.PlaneGeometry(330,175),new T.MeshBasicMaterial({map:new T.CanvasTexture(sunsetCanvas),depthTest:false,depthWrite:false,fog:false,side:T.DoubleSide}));sunsetPanel.renderOrder=-10;sunsetPanel.position.set(0,47,-220);scene.add(sunsetPanel);
 const mandalaDisc=new T.Mesh(new T.PlaneGeometry(57,57),new T.MeshBasicMaterial({map:mandalaTexture,transparent:true,depthTest:false,depthWrite:false,side:T.DoubleSide}));mandalaDisc.position.set(0,47,-219);mandalaDisc.renderOrder=-9;scene.add(mandalaDisc);
-const nightHeadlight=new T.SpotLight(0xfff2cf,0,110,Math.PI/5,.6,1.1);nightHeadlight.position.set(0,2,-1);nightHeadlight.target.position.set(0,0,-38);bike.add(nightHeadlight);bike.add(nightHeadlight.target);
-const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycle=0;const starField=new T.Group();scene.add(starField);const skyStarMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false});for(let i=0;i<95;i++){const dot=new T.Mesh(new T.SphereGeometry(.12+Math.random()*.12,4,3),skyStarMat);dot.position.set((Math.random()-.5)*330,50+Math.random()*110,-140-Math.random()*100);starField.add(dot)}
+
+const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycle=0;const starField=new T.Group();scene.add(starField);const skyStarMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false});const skyStarGeometry=new T.SphereGeometry(.16,4,3);for(let i=0;i<95;i++){const dot=new T.Mesh(skyStarGeometry,skyStarMat);dot.position.set((Math.random()-.5)*330,50+Math.random()*110,-140-Math.random()*100);starField.add(dot)}
 let offroadFocus=0;
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
@@ -252,7 +252,8 @@ function updateMushroomRoad(dt){
 }
 
 function wheel(parent,x,z,r=.47){const o=new T.Mesh(new T.TorusGeometry(r,.16,8,14),rubber);o.position.set(x,r+.1,z);o.rotation.y=Math.PI/2;parent.add(o)}
-const bike=new T.Group();scene.add(bike);let mushroomArmor=0,mushroomSize=1,mushroomBlink=0,mushroomInvulnerable=0;
+const bike=new T.Group();scene.add(bike);
+const nightHeadlight=new T.SpotLight(0xfff2cf,0,110,Math.PI/5,.6,1.1);nightHeadlight.position.set(0,2,-1);nightHeadlight.target.position.set(0,0,-38);bike.add(nightHeadlight);bike.add(nightHeadlight.target);let mushroomArmor=0,mushroomSize=1,mushroomBlink=0,mushroomInvulnerable=0;
 function absorbMushroomHit(){if(mushroomInvulnerable>0)return true;if(mushroomArmor<=0)return false;mushroomArmor=0;mushroomInvulnerable=2.2;mushroomBlink=2.2;popup("🍄 SHIELD BROKEN — NO DAMAGE!");return true}function updateMushroomSize(dt){mushroomInvulnerable=Math.max(0,mushroomInvulnerable-dt);mushroomBlink=Math.max(0,mushroomBlink-dt);bike.visible=crashTimer<=0&&(mushroomBlink<=0||Math.floor(mushroomBlink*12)%2===0);const target=mushroomArmor>0?1.35:1;mushroomSize+=(target-mushroomSize)*Math.min(1,dt*7);helmet.scale.setScalar(mushroomSize);helmet.position.y=2.14+(mushroomSize-1)*.36;for(const p of mushroomRiderParts){p.scale.setScalar(mushroomSize);p.position.y=p.userData.mushroomY+(mushroomSize-1)*.24}}cube(.68,.48,2.4,material(0xffca2c),0,1.1,0,bike);wheel(bike,0,-1.02);wheel(bike,0,1.02);cube(.83,.9,.55,material(0x2871d5),0,1.56,.22,bike);const helmet=new T.Mesh(new T.SphereGeometry(.44,12,10),material(0x1a2027));helmet.position.set(0,2.14,.18);bike.add(helmet);const ridingPack=material(0xd22235),ridingTrim=material(0x81111d);cube(.65,.72,.32,ridingPack,0,1.59,.65,bike);cube(.58,.16,.37,ridingTrim,0,1.92,.66,bike);cube(.12,.66,.12,ridingTrim,-.29,1.58,.42,bike);cube(.12,.66,.12,ridingTrim,.29,1.58,.42,bike);
 const tailpipe=cube(.17,.16,.85,material(0x9ca9b6),.43,.72,1.23,bike);
 /* Upgraded rider and motorcycle silhouette: forks, engine, lights, controls and limbs. */
