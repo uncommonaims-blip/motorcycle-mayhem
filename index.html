@@ -356,10 +356,12 @@ function updateChaseSynth(){
   }
  }catch(e){}
 }
-function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(wanted>0?chaseMusic:shroomTimer>0?tripMusic:motoMusic):null}
+function desiredMusic(){return musicEnabled&&!document.hidden&&playing&&!paused&&!storeOpen?(shroomTimer>0?tripMusic:wanted>0?chaseMusic:motoMusic):null}
 let musicRetryAt=0;
 function startMusic(track){
  if(!track)return;
+ // Enforce exclusive soundtrack playback even when invoked outside the mixer.
+ for(const other of musicTracks)if(other!==track&&!other.paused)other.pause();
  if(track.error){musicToggle.textContent="♫ AUDIO FILE ERROR";return}
  const now=performance.now();
  if(!track.paused)return;
@@ -370,7 +372,7 @@ function startMusic(track){
  track.volume=.65;
  try{const p=track.play();if(p&&p.then)p.then(()=>{track._nextRetry=0;if(activeMusic===track)musicToggle.textContent="♫ "+(track===motoMusic?"MAIN":track===chaseMusic?"CHASE":"MUSHROOM")+" PLAYING"}).catch(e=>{if(activeMusic===track)musicToggle.textContent="♫ TAP MUSIC TO ENABLE";});}catch(e){musicToggle.textContent="♫ TAP MUSIC TO ENABLE"}
 }
-function syncMotoMusic(){for(const track of musicTracks){track._nextRetry=0;track.muted=false;track.volume=.7;}musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();activeMusic=target;startMusic(target);if(!target)for(const track of musicTracks)track.pause()}
+function syncMotoMusic(){for(const track of musicTracks){track._nextRetry=0;track.muted=false;track.volume=.7;}musicToggle.textContent=musicEnabled?"♫ MUSIC ON":"♫ MUSIC OFF";warmMusic();const target=desiredMusic();for(const track of musicTracks)if(track!==target)track.pause();activeMusic=target;if(target)startMusic(target)}
 function updateMusicMix(dt){
  const target=desiredMusic();
  if(target!==activeMusic){
@@ -611,7 +613,7 @@ const drinkButton=document.getElementById("drinkBeer"),mushButton=document.getEl
 document.getElementById("useMed").onclick=()=>{if(!playing||paused||medStock<=0||health>=100)return;medStock--;health=Math.min(100,health+35);popup("🧰 FIRST AID +35 HP");refreshStash()};
 document.getElementById("useGas").onclick=()=>{if(!playing||paused||gasStock<=0||fuel>=99.5)return;gasStock--;fuel=Math.min(100,fuel+50);fuelStrandedTime=0;popup("⛽ EMERGENCY REFUEL +50%");refreshStash()};
 document.getElementById("useWeed").onclick=()=>{if(!playing||paused||weedStock<=0)return;weedStock--;weedLevel=Math.min(3,weedLevel+1);weedTimer=55;beatTime=0;beatPulse=1;enableBeatAudio();if(beatContext&&beatContext.state==="suspended")beatContext.resume().catch(()=>{});spawnWeedPuff();popup("🌿 BEAT REACTIVE MODE "+weedLevel);refreshStash()};
-function consumeItem(kind){if(!playing||paused||(kind==="beer"&&consuming>0))return;if(kind==="beer"){if(beerStock<=0)return;beerStock--}else{if(mushroomStock<=0)return;mushroomStock--}consumeKind=kind;refreshStash();consuming=1.35;consumableDelay.push({kind,time:kind==="mushroom"?.45:5});if(kind==="mushroom"){shroomLevel=Math.min(3,shroomLevel+1);shroomTimer=70;mushroomArmor=1;warmMusic();tripMusic.volume=.27;activeMusic=tripMusic;startMusic(tripMusic);syncMotoMusic()}popup(kind==="beer"?"🍺 CHUG!":"🍄 MUNCH!")}
+function consumeItem(kind){if(!playing||paused||(kind==="beer"&&consuming>0))return;if(kind==="beer"){if(beerStock<=0)return;beerStock--}else{if(mushroomStock<=0)return;mushroomStock--}consumeKind=kind;refreshStash();consuming=1.35;consumableDelay.push({kind,time:kind==="mushroom"?.45:5});if(kind==="mushroom"){shroomLevel=Math.min(3,shroomLevel+1);shroomTimer=70;mushroomArmor=1;warmMusic();syncMotoMusic()}popup(kind==="beer"?"🍺 CHUG!":"🍄 MUNCH!")}
 drinkButton.addEventListener("click",()=>consumeItem("beer"));mushButton.addEventListener("click",()=>consumeItem("mushroom"));
 const heldItem=new T.Group();bike.add(heldItem);heldItem.position.set(-.65,1.5,-.1);
 const heldCan=new T.Mesh(new T.CylinderGeometry(.16,.16,.46,9),material(0xa3b6d0)),heldShroom=new T.Mesh(new T.ConeGeometry(.22,.42,8),material(0xff74df));heldItem.add(heldCan,heldShroom);heldItem.visible=false;
