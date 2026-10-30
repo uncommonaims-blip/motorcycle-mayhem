@@ -990,14 +990,34 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   if(u.age>10&&!alienFloating.some(a=>a.ufo===u)){scene.remove(u.g);ufo=null}
  }
  for(let i=alienFloating.length-1;i>=0;i--){
-  const a=alienFloating[i],obj=a.obj.g||a.obj;a.progress+=dt;a.life-=dt;
-  const p=Math.min(1,a.progress/2.4),returning=a.life<1.3;
+  const a=alienFloating[i],obj=a.obj.g||a.obj;
+  a.progress+=dt;a.life-=dt;
   if(a.type==='bike')alienAbduction=Math.max(.01,a.life);
-  obj.position.x=T.MathUtils.damp(obj.position.x,a.ufo.g.position.x,2.5,dt);
-  obj.position.z=T.MathUtils.damp(obj.position.z,a.ufo.g.position.z,2.5,dt);
-  obj.position.y=a.originY+(returning?Math.max(0,a.life/1.3):p)*24;
+  const ship=a.ufo.g,phase=a.progress,entranceY=ship.position.y-1.8;
+  if(phase<1.8){
+   // Tractor beam lifts the subject all the way into the underside of the craft.
+   const t=Math.min(1,phase/1.8),ease=t*t*(3-2*t);
+   obj.visible=true;
+   obj.position.x=T.MathUtils.lerp(a.startX??(a.startX=obj.position.x),ship.position.x,ease);
+   obj.position.z=T.MathUtils.lerp(a.startZ??(a.startZ=obj.position.z),ship.position.z,ease);
+   obj.position.y=T.MathUtils.lerp(a.originY,entranceY,ease);
+   obj.scale.setScalar(Math.max(.08,1-.72*ease));
+  }else if(a.life>1.35){
+   // Fully inside: invisible for a short alien-experiment interval.
+   obj.visible=false;obj.position.copy(ship.position);obj.position.y=entranceY;
+   obj.scale.setScalar(.08);
+  }else{
+   // Emerge visibly from the belly, then descend back toward the road.
+   const t=Math.max(0,Math.min(1,(1.35-a.life)/1.35)),ease=t*t*(3-2*t);
+   obj.visible=true;
+   obj.position.x=T.MathUtils.lerp(ship.position.x,a.type==='bike'?T.MathUtils.clamp(a.returnX??0,-9,9):a.startX,ease);
+   obj.position.z=T.MathUtils.lerp(ship.position.z,a.type==='bike'?8:a.startZ,ease);
+   const ground=a.type==='bike'?mountainHeightAt(obj.position.x,obj.position.z)+11:mountainHeightAt(obj.position.x,obj.position.z)+(a.type==='car'?1:0);
+   obj.position.y=T.MathUtils.lerp(entranceY,ground,ease);
+   obj.scale.setScalar(.08+.92*ease);
+  }
   obj.rotation.z+=dt*4;obj.rotation.x+=dt*2;
-  if(a.life<=0){obj.rotation.z=0;obj.rotation.x=0;if(a.type!=='bike')a.obj.alienTaken=false;alienRelease(a);alienFloating.splice(i,1)}
+  if(a.life<=0){obj.scale.setScalar(1);obj.visible=true;obj.rotation.z=0;obj.rotation.x=0;if(a.type!=='bike')a.obj.alienTaken=false;alienRelease(a);alienFloating.splice(i,1)}
  }
  if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,85);bike.position.x=T.MathUtils.clamp(bike.position.x+alienStickX*dt*21,-120,120)}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,mountainHeightAt(bike.position.x,bike.position.z)+alienAltitude),5,dt);bike.rotation.z=Math.sin(ufoClock*3)*.04}
  for(const w of alienWheels)w.rotation.y=T.MathUtils.damp(w.rotation.y,alienHover?0:Math.PI/2,8,dt);alienUp.style.display=alienHover?'none':'none';flightStick.style.display=alienHover?'block':'none';
