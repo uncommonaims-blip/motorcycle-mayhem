@@ -379,8 +379,13 @@ function updateCaveFragments(dt){
   if(f.life<=0){scene.remove(f.mesh);f.mesh.geometry.dispose();caveFragments.splice(i,1)}
  }
 }
+let cavePreviousPOV=null;
+const caveCockpit=document.createElement('div');caveCockpit.id='caveCockpit';caveCockpit.setAttribute('aria-hidden','true');caveCockpit.innerHTML='<div class="caveHandlebar"><span class="caveGrip"></span><span class="caveHeadlamp">◉</span><span class="caveGrip"></span></div>';
+caveCockpit.style.cssText='display:none;position:fixed;left:50%;bottom:10%;transform:translateX(-50%);width:190px;height:50px;pointer-events:none;z-index:9;opacity:.85';
+const caveCockpitStyle=document.createElement('style');caveCockpitStyle.textContent='#caveCockpit .caveHandlebar{height:42px;display:flex;align-items:center;justify-content:space-between;border-top:7px solid #242a32;border-radius:55% 55% 0 0;filter:drop-shadow(0 3px 3px #0009)}#caveCockpit .caveGrip{width:52px;height:15px;background:repeating-linear-gradient(90deg,#161b21 0 6px,#434953 6px 9px);border:2px solid #737b86;border-radius:9px}#caveCockpit .caveHeadlamp{margin-top:-12px;color:#fff7bd;text-shadow:0 0 12px #fff6ad,0 0 26px #ffd56c;font-size:31px}';document.head.appendChild(caveCockpitStyle);document.body.appendChild(caveCockpit);
 function enterCave(cave){
  if(!cave)return false;
+ cavePreviousPOV=firstPerson;firstPerson=true;document.getElementById('viewToggle').textContent='🎥 CHASE';caveCockpit.style.display='block';
  caveRide={...cave,time:0,centerX:bike.position.x,floorY:bike.position.y,hitCooldown:0};
  cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);
  for(const spike of cave.spikes){spike.visible=true;spike.userData.broken=false}
@@ -409,7 +414,7 @@ function updateCaveRide(dt){
    }
   }
   if(ride.time>10*CAVE_LENGTH_MULTIPLIER||ride.tunnel.position.z>125*CAVE_LENGTH_MULTIPLIER){
-   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;
+   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null;document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'}
    popup('🏔️ CAVE EXIT!')
   }
   return;
