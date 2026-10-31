@@ -405,7 +405,7 @@ function buildMountainCave(mountain,radius,height,seed){
   const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?0:Math.PI;spike.position.set(x,k%2?-4.4+floorAt(z)+length*.5:4.5+Math.max(0,-floorAt(z))*.2-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
  // Dark end wall prevents the open world showing through the far tunnel mouth.
  const back=new T.Mesh(new T.CircleGeometry(5,12),new T.MeshBasicMaterial({color:0x10131d,side:T.DoubleSide}));back.position.z=12-115*CAVE_LENGTH_MULTIPLIER;tunnel.add(back);
- mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,lavaCenter,lavaWidth,bridgeLocations,floorAt,galleryZ,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
+ mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,lavaCenter,lavaWidth,bridgeLocations,floorAt,galleryZ,caveDrop,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
  return cave;
 }
 function makeYeti(mountain,seed){
@@ -479,6 +479,7 @@ function updateMountainYetis(dt){
  }
 }
 const caveFragments=[];
+const caveVisibilityDistance=105;
 function breakCaveSpike(spike,ride){
  spike.userData.broken=true;spike.visible=false;
  const center=new T.Vector3();spike.getWorldPosition(center);
@@ -507,6 +508,9 @@ function enterCave(cave){
  cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);
  for(const spike of cave.spikes){spike.visible=true;spike.userData.broken=false}
  cave.tunnel.visible=true;cave.mountain.visible=false;
+ // Cache the static cave meshes once. Avoid rebuilding visibility lists per frame.
+ if(!cave.renderPieces){cave.renderPieces=[];cave.tunnel.traverse(o=>{if(o.isMesh||o.isLight){if(o===cave.tunnel)return;const local=new T.Vector3();o.getWorldPosition(local);cave.renderPieces.push({object:o,z:local.z-cave.tunnel.position.z,always:o.geometry&&o.geometry.type==='SphereGeometry'&&o.scale.z>30});}})}
+ cave.visibilityClock=0;
  popup('🦇 ENTERING MOUNTAIN CAVE!');return true;
 }
 function updateCaveRide(dt){
@@ -514,6 +518,14 @@ function updateCaveRide(dt){
  if(caveRide){
   const ride=caveRide;ride.time+=dt;
   ride.tunnel.position.z+=Math.max(13,speed*.19)*dt;
+  // Cull distant cave pieces at a throttled cadence to reduce GPU draw calls.
+  ride.visibilityClock=(ride.visibilityClock||0)-dt;
+  if(ride.visibilityClock<=0){ride.visibilityClock=.18;
+   const riderLocalZ=bike.position.z-ride.tunnel.position.z;
+   for(const part of ride.renderPieces||[]){
+    part.object.visible=part.always||Math.abs(part.z-riderLocalZ)<caveVisibilityDistance;
+   }
+  }
   // Ride inside a full tunnel, with obstacles approaching rather than passing through scenery.
   bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
   const localFloorZ=bike.position.z-ride.tunnel.position.z;
@@ -524,7 +536,7 @@ function updateCaveRide(dt){
   if(inGallery){
    if(!ride.wasInGallery){ride.descentVelocity=0;ride.wasInGallery=true;popup('🌋 GRAND CAVERN — WATCH THE DROP!')}
    ride.descentVelocity=Math.min(28,ride.descentVelocity+20*dt);
-   bike.position.y=Math.max(ride.floorY-caveDrop,bike.position.y-ride.descentVelocity*dt);
+   bike.position.y=Math.max(ride.floorY-ride.caveDrop,bike.position.y-ride.descentVelocity*dt);
   }else{
    bike.position.y=T.MathUtils.damp(bike.position.y,lowerFloor,7,dt);
   }
@@ -541,6 +553,7 @@ function updateCaveRide(dt){
   let closestDanger=Infinity;
   for(const spike of ride.spikes){
    if(spike.userData.broken||spike.position.y>0)continue;
+   if(Math.abs(spike.position.z-caveZ)>12)continue;
    const world=new T.Vector3();spike.getWorldPosition(world);
    const distance=Math.abs(world.z-bike.position.z);
    // Use the narrow physical base of each floor cone, not an oversized 3D hit box.
