@@ -300,8 +300,8 @@ function ridgeProfile(angle,seed){
  const v=Math.sin(angle*3+seed*1.7)*.13+Math.sin(angle*7-seed*.9)*.075+Math.sin(angle*11+seed*2.3)*.035;
  return Math.max(.72,1+v);
 }
-function rockyMountainGeometry(radius,height,seed,snow=false){
- const radial=18,vertical=snow?3:7,positions=[],indices=[];
+function rockyMountainGeometry(radius,height,seed,snow=false,detail=1){
+ const radial=detail===0?8:18,vertical=detail===0?2:(snow?3:7),positions=[],indices=[];
  for(let j=0;j<=vertical;j++){
   const t=j/vertical;
   for(let k=0;k<=radial;k++){
@@ -321,19 +321,19 @@ function scenerySeed(n){const v=Math.sin(n*127.1+18.73)*43758.5453;return v-Math
 for(const side of [-1,1]){
  for(let i=0;i<13;i++){
   const w=34+scenerySeed(i+side*31)*28,h=18+scenerySeed(i+side*47)*30;
-  const seed=i+side*37;const mesh=new T.Mesh(rockyMountainGeometry(w*.65,h,seed),mountainMat);
+  const seed=i+side*37;const mesh=new T.Mesh(rockyMountainGeometry(w*.65,h,seed),mountainMat);const mountainHighGeometry=mesh.geometry,mountainLowGeometry=rockyMountainGeometry(w*.65,h,seed,false,0);
   const snowHeight=h*.27,snowRadius=w*.65*(snowHeight/h);
   const snow=new T.Mesh(rockyMountainGeometry(snowRadius*1.08,snowHeight,seed,true),new T.MeshLambertMaterial({color:0xf1f6fa,flatShading:true,transparent:true,depthWrite:true,side:T.DoubleSide}));
   snow.position.y=h*.5-snowHeight*.5+.02;mesh.add(snow);
   mesh.position.set(side*(88+i%3*19),h*.43-3,-20-i*22);
-  mesh.material=mountainMat.clone();mesh.material.transparent=true;if(i%2===0)buildMountainCave(mesh,w*.65,h,i+side*23);sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h,seed});if(i%3===0)makeYeti(mesh,i+side*19);
+  mesh.material=mountainMat.clone();mesh.material.transparent=true;if(i%2===0)buildMountainCave(mesh,w*.65,h,i+side*23);sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h,seed,highGeometry:mountainHighGeometry,lowGeometry:mountainLowGeometry,lodNear:true});if(i%3===0)makeYeti(mesh,i+side*19);
  }
  for(let i=0;i<30;i++){
   const layer=i%3,z=25-Math.floor(i/3)*38-layer*8,dist=[23,43,68][layer]+scenerySeed(i+side*83)*[10,13,16][layer];
   const g=new T.Group(),h=5+scenerySeed(i+side*97)*9;
   const trunk=new T.Mesh(new T.CylinderGeometry(.3,.45,h*.34,5),trunkMat);trunk.position.y=h*.17;g.add(trunk);
-  const canopy=new T.Mesh(new T.ConeGeometry(h*.3,h*.8,6),i%3?farTreeMat:nearTreeMat);canopy.position.y=h*.62;g.add(canopy);
-  g.position.set(side*dist,0,z);sceneryLayers.add(g);sceneryParts.trees.push({mesh:g,x:g.position.x,layer:i%3});
+  const canopy=new T.Mesh(new T.ConeGeometry(h*.3,h*.8,6),i%3?farTreeMat:nearTreeMat);const canopyHighGeometry=canopy.geometry,canopyLowGeometry=new T.ConeGeometry(h*.3,h*.8,3);canopy.position.y=h*.62;g.add(canopy);
+  g.position.set(side*dist,0,z);sceneryLayers.add(g);sceneryParts.trees.push({mesh:g,x:g.position.x,layer:i%3,canopy,highGeometry:canopyHighGeometry,lowGeometry:canopyLowGeometry,lodNear:true});
  }
  for(let i=0;i<100;i++){
   const g=new T.Group(),h=.7+scenerySeed(i+side*113)*1.3;
@@ -342,14 +342,14 @@ for(const side of [-1,1]){
   sceneryLayers.add(g);sceneryParts.grass.push({mesh:g,x:g.position.x});
  }
 }
-function updateSceneryParallax(dt){
+let mayhemLodFrame=0;function updateSceneryParallax(dt){
  const x=bike.position.x,advance=playing&&!paused?speed*.19*dt:0;
  for(const o of sceneryParts.grass){o.mesh.position.z+=advance;if(o.mesh.position.z>42)o.mesh.position.z-=430}
  for(const o of sceneryParts.trees){o.mesh.position.z+=advance*[1,.65,.35][o.layer];if(o.mesh.position.z>48)o.mesh.position.z-=400}
  for(const o of sceneryParts.mountains){o.mesh.position.z+=advance*.12;if(o.mesh.position.z>45)o.mesh.position.z-=300}
  for(const o of sceneryParts.mountains)o.mesh.position.x=o.x;
  for(const o of sceneryParts.trees)o.mesh.position.x=o.x+x*[.42,.23,.11][o.layer];
- for(const o of sceneryParts.grass)o.mesh.position.x=o.x+x*.62;const far=alienHover?205:165;for(const o of sceneryParts.mountains)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<far&&Math.abs(o.mesh.position.x-bike.position.x)<155;for(const o of sceneryParts.trees)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<120&&Math.abs(o.mesh.position.x-bike.position.x)<105;for(const o of sceneryParts.grass)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<75;
+ for(const o of sceneryParts.grass)o.mesh.position.x=o.x+x*.62;const far=alienHover?205:165;for(const o of sceneryParts.mountains)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<far&&Math.abs(o.mesh.position.x-bike.position.x)<155;for(const o of sceneryParts.trees)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<120&&Math.abs(o.mesh.position.x-bike.position.x)<105;for(const o of sceneryParts.grass)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<75;if(++mayhemLodFrame%8===0){for(const o of sceneryParts.mountains){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?94:82);if(near!==o.lodNear){o.mesh.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}for(const o of sceneryParts.trees){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?53:43);if(near!==o.lodNear){o.canopy.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}}
 }
 const lines=[];for(let z=-390;z<50;z+=16)for(let x of [-6,0,6])lines.push(cube(.22,.02,7,white,x,.01,z));
 /* Mushroom road hallucination: visual mesh waves only; collision lanes remain stable. */
