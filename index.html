@@ -1056,10 +1056,23 @@ function createGorge(){
  const deckMat=new T.MeshLambertMaterial({color:0x555963,side:T.DoubleSide});
  const cableMat=new T.MeshBasicMaterial({color:0xb9c4c9});
  // A transverse ravine: its long axis runs LEFT-RIGHT across the highway.
- // Opaque dark opening covers the old road/ground; the actual bridge deck sits ABOVE it.
- const opening=cube(420,.15,246,voidMat,0,-21.8,0,group);
- // Recessed far bottom gives the opening depth, visible beside the narrow bridge.
- cube(420,.12,246,new T.MeshLambertMaterial({color:0x51443d}),0,-22,0,group);for(let i=0;i<38;i++){const x=(Math.random()-.5)*390,z=(Math.random()-.5)*235;const rock=new T.Mesh(new T.DodecahedronGeometry(1+Math.random()*3,0),cliffMat);rock.position.set(x,-19,z);rock.rotation.set(Math.random(),Math.random(),0);group.add(rock)}
+ // The ravine is actual low-poly geometry: two sloping banks and a recessed floor.
+ // The existing road outside the gorge remains visible, but the gorge surface is below it.
+ const slopeMat=new T.MeshLambertMaterial({color:0x756a55,side:T.DoubleSide,flatShading:true});
+ function ravineSlope(zTop,zBottom){const vertices=new Float32Array([-210,.04,zTop,210,.04,zTop,-210,-21,zBottom,210,-21,zBottom]);const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(vertices,3));geo.setIndex([0,2,1,1,2,3]);geo.computeVertexNormals();group.add(new T.Mesh(geo,slopeMat))}
+ ravineSlope(-123,-62);ravineSlope(123,62);
+ const floor=cube(420,.5,124,new T.MeshLambertMaterial({color:0x685f4c}),0,-21.4,0,group);
+ const creek=cube(420,.06,10,new T.MeshLambertMaterial({color:0x3d9db1,transparent:true,opacity:.78,side:T.DoubleSide}),0,-21.07,13,group);
+ const bushes=[];for(let i=0;i<24;i++){const x=(Math.random()-.5)*380,z=(Math.random()<.5?-1:1)*(23+Math.random()*30);const bush=new T.Mesh(new T.IcosahedronGeometry(.9+Math.random()*.9,0),new T.MeshLambertMaterial({color:i%2?0x365b2b:0x52713c,flatShading:true}));bush.position.set(x,-20.7,z);group.add(bush);bushes.push(bush)}
+ for(let i=0;i<28;i++){const x=(Math.random()-.5)*380,z=(Math.random()-.5)*115;const rock=new T.Mesh(new T.DodecahedronGeometry(.8+Math.random()*2,0),cliffMat);rock.position.set(x,-20.4,z);group.add(rock)}
+ // A simple buck with antlers patrols the canyon floor.
+ const buck=new T.Group(),deerBrown=new T.MeshLambertMaterial({color:0x8d5632,flatShading:true}),antlerMat=new T.MeshLambertMaterial({color:0xe2d2ae});
+ const torso=new T.Mesh(new T.BoxGeometry(2,1.2,3.2),deerBrown);torso.position.y=1.7;buck.add(torso);
+ const neck=new T.Mesh(new T.BoxGeometry(.75,1.7,.85),deerBrown);neck.position.set(0,2.55,-1.15);neck.rotation.x=-.2;buck.add(neck);
+ const head=new T.Mesh(new T.BoxGeometry(.85,.75,1.1),deerBrown);head.position.set(0,3.35,-1.55);buck.add(head);
+ for(const side of [-1,1]){for(const z of [-1.05,1.05]){const leg=new T.Mesh(new T.CylinderGeometry(.16,.2,1.55,5),deerBrown);leg.position.set(side*.7,.78,z);buck.add(leg)}
+ const beam=new T.Mesh(new T.CylinderGeometry(.09,.13,1.65,5),antlerMat);beam.position.set(side*.42,4.25,-1.65);beam.rotation.z=-side*.32;buck.add(beam);for(let j=0;j<2;j++){const tine=new T.Mesh(new T.CylinderGeometry(.06,.1,.7,5),antlerMat);tine.position.set(side*(.6+j*.13),4.35+j*.4,-1.65-(j*.2));tine.rotation.z=side*.35;buck.add(tine)}}
+ buck.position.set(24,-20.8,35);group.add(buck);
  // Cliff banks at either END of the crossing, not along the bridge sides.
  for(const bank of [-1,1]){
   cube(420,48,26,rockMat,0,-25.5,bank*136,group);
@@ -1086,7 +1099,7 @@ function createGorge(){
  }
  for(const side of [-1,1])cube(24,.3,18,deckMat,0,.48,side*137,group);
  group.position.z=-190;
- gorge={group,opening,triggered:false,falling:false};
+ gorge={group,floor,creek,buck,buckHit:0,splashTimer:0,splashes:[],triggered:false,falling:false};
  popup('🌉 HUGE CANYON AHEAD — STAY ON THE BRIDGE!');
 }
 function updateGorge(dt){
@@ -1116,6 +1129,7 @@ function updateGorge(dt){
   if(gorgeFall<=0){g.falling=false;gorgeTrail=7;bike.position.y=-19;bike.rotation.z=0;health=Math.max(1,health-18);popup('🪨 ROCKY GORGE TRAIL — FIND YOUR WAY OUT!')}
  }
  if(gorgeTrail>0){gorgeTrail=Math.max(0,gorgeTrail-dt);bike.position.y=-19+19*(1-gorgeTrail/7)**2;if(gorgeTrail===0)popup('🏍️ BACK ABOVE THE GORGE!')}
+ if(gorgeTrail>0){const bx=bike.position.x-g.group.position.x,bz=bike.position.z-g.group.position.z;g.buck.position.x+=T.MathUtils.clamp(bx-g.buck.position.x,-1,1)*dt*5;g.buck.position.z+=T.MathUtils.clamp(bz-g.buck.position.z,-1,1)*dt*5;g.buck.rotation.y=Math.atan2(bx-g.buck.position.x,-(bz-g.buck.position.z));g.buckHit=Math.max(0,g.buckHit-dt);if(Math.hypot(bx-g.buck.position.x,bz-g.buck.position.z)<3&&g.buckHit===0){health=Math.max(1,health-8);g.buckHit=2;popup('🦌 BUCK CHARGE! -8 HP')}g.splashTimer-=dt;if(Math.abs(bz-13)<7&&bike.position.y<-13&&g.splashTimer<=0){g.splashTimer=.14;for(let i=0;i<3;i++){const drop=new T.Mesh(new T.SphereGeometry(.16,4,3),new T.MeshBasicMaterial({color:0xa7eaf5}));drop.position.set(bx+(Math.random()-.5)*2,-20.6,bz+(Math.random()-.5)*2);g.group.add(drop);g.splashes.push({mesh:drop,life:.45,vy:3+Math.random()*3})}}}for(let i=g.splashes.length-1;i>=0;i--){const p=g.splashes[i];p.life-=dt;p.mesh.position.y+=p.vy*dt;p.vy-=12*dt;p.mesh.scale.multiplyScalar(Math.max(.7,1-dt*2));if(p.life<=0){g.group.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();g.splashes.splice(i,1)}}
  if(g.group.position.z>205){scene.remove(g.group);gorge=null;gorgeFall=0;gorgeTrail=0}
 }
 let gorgeTrail=0;function resetGorge(){if(gorge){scene.remove(gorge.group);gorge=null}gorgeClock=0;gorgeNext=45+Math.random()*25;gorgeFall=0;gorgeTrail=0}
