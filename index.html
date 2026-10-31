@@ -696,10 +696,13 @@ function updateMushroomRoad(dt){
 
 function wheel(parent,x,z,r=.47){const o=new T.Mesh(new T.TorusGeometry(r,.16,8,14),new T.MeshLambertMaterial({color:0x151719}));o.position.set(x,r+.1,z);o.rotation.y=Math.PI/2;parent.add(o);return o}
 const bike=new T.Group();scene.add(bike);
-const nightHeadlight=new T.SpotLight(0xfff2cf,0,110,Math.PI/5,.6,1.1);nightHeadlight.position.set(0,2,-1);nightHeadlight.target.position.set(0,0,-38);bike.add(nightHeadlight);bike.add(nightHeadlight.target);
+// Focused, forward-facing motorcycle headlamp. Negative Z is forward.
+const nightHeadlight=new T.SpotLight(0xfff0ce,0,125,Math.PI/3.8,.7,1.1);
+nightHeadlight.position.set(0,1.7,-1.3);
+nightHeadlight.target.position.set(0,.7,-35);bike.add(nightHeadlight);bike.add(nightHeadlight.target);
 // Cave illumination must be created AFTER bike exists (prior attempts failed at startup).
-const caveBikeFill=new T.PointLight(0xffe5c2,0,65,1.1);
-caveBikeFill.position.set(0,2,-5);bike.add(caveBikeFill);
+const caveBikeFill=new T.PointLight(0xffe5c2,0,24,1.5);
+caveBikeFill.position.set(0,1.7,-2.5);bike.add(caveBikeFill);
 let mushroomArmor=0,mushroomSize=1,mushroomBlink=0,mushroomInvulnerable=0;
 function absorbMushroomHit(){if(mushroomInvulnerable>0)return true;if(mushroomArmor<=0)return false;mushroomArmor=0;mushroomInvulnerable=2.2;mushroomBlink=2.2;popup("🍄 SHIELD BROKEN — NO DAMAGE!");return true}function updateMushroomSize(dt){mushroomInvulnerable=Math.max(0,mushroomInvulnerable-dt);mushroomBlink=Math.max(0,mushroomBlink-dt);bike.visible=crashTimer<=0&&(mushroomBlink<=0||Math.floor(mushroomBlink*12)%2===0);const target=mushroomArmor>0?1.35:1;mushroomSize+=(target-mushroomSize)*Math.min(1,dt*7);helmet.scale.setScalar(mushroomSize);helmet.position.y=2.14+(mushroomSize-1)*.36;for(const p of mushroomRiderParts){p.scale.setScalar(mushroomSize);p.position.y=p.userData.mushroomY+(mushroomSize-1)*.24}}cube(.68,.48,2.4,material(0xffca2c),0,1.1,0,bike);const alienWheels=[wheel(bike,0,-1.02),wheel(bike,0,1.02)];cube(.83,.9,.55,material(0x2871d5),0,1.56,.22,bike);const helmet=new T.Mesh(new T.SphereGeometry(.44,12,10),material(0x1a2027));helmet.position.set(0,2.14,.18);bike.add(helmet);const ridingPack=material(0xd22235),ridingTrim=material(0x81111d);cube(.65,.72,.32,ridingPack,0,1.59,.65,bike);cube(.58,.16,.37,ridingTrim,0,1.92,.66,bike);cube(.12,.66,.12,ridingTrim,-.29,1.58,.42,bike);cube(.12,.66,.12,ridingTrim,.29,1.58,.42,bike);
 const tailpipe=cube(.17,.16,.85,material(0x9ca9b6),.43,.72,1.23,bike);
@@ -1706,8 +1709,8 @@ sunsetPanel.material.opacity=1;
 mandalaDisc.visible=sunsetPanel.visible&&shroomTimer>0;
 mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+shroomLevel*.12);mandalaDisc.scale.setScalar(1+.17*Math.sin(dayCycle*3.3)+.045*Math.sin(dayCycle*8));mandalaDisc.material.opacity=.8+.2*Math.sin(dayCycle*4.7);
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*330;
-nightHeadlight.intensity=caveRide?125:nightAmount*95;
-caveBikeFill.intensity=caveRide?12:0;
+nightHeadlight.intensity=caveRide?190:nightAmount*95;
+caveBikeFill.intensity=caveRide?3:0;
 headlight.material.color.setHex(caveRide||nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
 document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);if(!caveRide){updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);}updateCaveRide(dt);if(!caveRide){updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);}
@@ -1717,8 +1720,14 @@ if(caveRide){
  const hidden=[];
  for(const obj of scene.children){if(obj.visible&&!keep.has(obj)&&obj!==scene.background){obj.visible=false;hidden.push(obj)}}
  const oldBackground=scene.background,oldFog=scene.fog;
- scene.background=new T.Color(0x293340);scene.fog=new T.Fog(0x293340,75,165);
+ // Dim global daylight ONLY for the cave draw. Restore it before the next frame.
+ // The rider's forward spotlight remains bright, making a visible headlamp pool.
+ const caveDaylights=scene.children.filter(o=>o.isHemisphereLight||o.isAmbientLight||o.isDirectionalLight);
+ const savedDaylight=caveDaylights.map(o=>o.intensity);
+ for(let i=0;i<caveDaylights.length;i++)caveDaylights[i].intensity=savedDaylight[i]*(caveDaylights[i].isDirectionalLight?.045:.16);
+ scene.background=new T.Color(0x151b24);scene.fog=new T.Fog(0x151b24,48,115);
  renderer.render(scene,camera);
+ for(let i=0;i<caveDaylights.length;i++)caveDaylights[i].intensity=savedDaylight[i];
  scene.background=oldBackground;scene.fog=oldFog;
  for(const obj of hidden)obj.visible=true;
 }else renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
