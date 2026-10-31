@@ -1064,9 +1064,55 @@ addEventListener('keyup',e=>{if(e.key.toLowerCase()==='u')alienClimb=false});fun
  if(subject.type==='car'){subject.obj.alienCar=true;subject.obj.crashed=false;subject.obj.g.visible=true;subject.obj.g.position.y=1;subject.obj.v=90;subject.obj.vx=(Math.random()-.5)*10;subject.obj.g.traverse(o=>{if(o.isMesh&&o.material&&o.material.color)o.material.color.lerp(new T.Color(0x56ffea),.55)});popup('👽 ALIEN CAR RELEASED!');return}
  if(subject.type==='yeti'){subject.obj.mode='retreat';subject.obj.timer=5;subject.obj.cooldown=12;subject.obj.g.visible=true;subject.obj.g.position.y=mountainHeightAt(subject.obj.g.position.x,subject.obj.g.position.z);popup('👽 YETI RETURNED FROM SPACE!')}
 }
+// Remove a local cluster of mountain triangles, ejecting rock shards away from its base core.
+const mountainFragments=[];
+function blastMountain(o,worldHit){
+ const mesh=o.mesh,localHit=mesh.worldToLocal(worldHit.clone()),base=new T.Vector3(0,-o.height/2,0);
+ const outward=localHit.clone().sub(base).normalize();
+ if(outward.lengthSq()<.01)outward.set(0,1,0);
+ const radius=o.radius*.58,vertical=o.height*.36;
+ let removed=0;
+ for(const key of ["highGeometry","lowGeometry"]){
+  const source=o[key];if(!source||!source.index)continue;
+  const pos=source.getAttribute("position"),idx=source.index.array,kept=[];
+  for(let i=0;i<idx.length;i+=3){
+   const a=idx[i],b=idx[i+1],c=idx[i+2];
+   const cx=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3,cy=(pos.getY(a)+pos.getY(b)+pos.getY(c))/3,cz=(pos.getZ(a)+pos.getZ(b)+pos.getZ(c))/3;
+   const dx=(cx-localHit.x)/radius,dy=(cy-localHit.y)/vertical,dz=(cz-localHit.z)/radius;
+   const inBlast=dx*dx+dy*dy+dz*dz<1;
+   if(inBlast&&key==="highGeometry")removed++;
+   if(!inBlast)kept.push(a,b,c);
+  }
+  if(kept.length===idx.length)continue;
+  const geometry=source.clone();geometry.setIndex(kept);geometry.computeVertexNormals();
+  o[key]=geometry;if(mesh.geometry===source)mesh.geometry=geometry;
+  if(!o.blastGeometries)o.blastGeometries=[];o.blastGeometries.push(geometry);
+ }
+ if(!removed)return false;
+ // Snow caps and cave details remain children of the mountain; clear the snow
+ // on high impacts to avoid a floating cap.
+ if(localHit.y>o.height*.15)for(const child of mesh.children)if(child.isMesh&&child.position.y>0)child.visible=false;
+ const count=Math.min(32,Math.max(12,Math.round(removed*.7)));
+ for(let i=0;i<count;i++){
+  const size=.7+Math.random()*2.1;
+  const rock=new T.Mesh(new T.TetrahedronGeometry(size,0),new T.MeshLambertMaterial({color:i%4===0?0xa9adb2:0x756d67,flatShading:true}));
+  rock.position.copy(worldHit).add(new T.Vector3((Math.random()-.5)*radius*.7,(Math.random()-.5)*vertical*.7,(Math.random()-.5)*radius*.7));
+  scene.add(rock);
+  const direction=outward.clone().applyQuaternion(mesh.getWorldQuaternion(new T.Quaternion())).add(new T.Vector3((Math.random()-.5)*.9,Math.random()*.7,(Math.random()-.5)*.9)).normalize();
+  mountainFragments.push({rock,velocity:direction.multiplyScalar(15+Math.random()*20),life:1.5+Math.random()});
+ }
+ photonExplosion(worldHit.x,worldHit.y,worldHit.z);
+ return true;
+}
+function updateMountainFragments(dt){
+ for(let i=mountainFragments.length-1;i>=0;i--){
+  const f=mountainFragments[i];f.life-=dt;f.velocity.y-=18*dt;f.rock.position.addScaledVector(f.velocity,dt);f.rock.rotation.x+=dt*6;f.rock.rotation.z+=dt*4;
+  if(f.life<=0){scene.remove(f.rock);f.rock.geometry.dispose();f.rock.material.dispose();mountainFragments.splice(i,1)}
+ }
+}
 const photonExplosions=[];
 function photonExplosion(x,y,z){const group=new T.Group();group.position.set(x,y,z);scene.add(group);const colors=[0xffe58a,0xff8734,0xff3625,0xffffff];for(let i=0;i<15;i++){const m=new T.Mesh(i%3===0?new T.BoxGeometry(.5+Math.random(),.25+Math.random()*.5,.8+Math.random()*1.5):new T.OctahedronGeometry(.25+Math.random()*.5,0),new T.MeshBasicMaterial({color:colors[i%4],transparent:true,opacity:1}));m.position.set((Math.random()-.5)*2,(Math.random()-.5)*2,(Math.random()-.5)*2);group.add(m);m.userData.velocity=new T.Vector3((Math.random()-.5)*18,Math.random()*15,(Math.random()-.5)*18)}photonExplosions.push({group,life:.48})}
-function updateAlienMayhem(dt){document.body.classList.toggle('mayhem-alien-flight',!!alienHover);if(!storeOpen){alienControls.style.visibility='';flightStick.style.visibility=''}for(let i=photonExplosions.length-1;i>=0;i--){const e=photonExplosions[i];e.life-=dt;for(const p of e.group.children){p.position.addScaledVector(p.userData.velocity,dt);p.material.opacity=Math.max(0,e.life/.48);p.scale.multiplyScalar(1+dt*.3)}if(e.life<=0){scene.remove(e.group);e.group.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});photonExplosions.splice(i,1)}}
+function updateAlienMayhem(dt){updateMountainFragments(dt);document.body.classList.toggle('mayhem-alien-flight',!!alienHover);if(!storeOpen){alienControls.style.visibility='';flightStick.style.visibility=''}for(let i=photonExplosions.length-1;i>=0;i--){const e=photonExplosions[i];e.life-=dt;for(const p of e.group.children){p.position.addScaledVector(p.userData.velocity,dt);p.material.opacity=Math.max(0,e.life/.48);p.scale.multiplyScalar(1+dt*.3)}if(e.life<=0){scene.remove(e.group);e.group.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});photonExplosions.splice(i,1)}}
 const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle').style.transform='rotate('+(130-gasPct*2.6)+'deg)';document.getElementById('gasGaugeValue').textContent=Math.round(gasPct)+'%';
 
  if(!playing||paused)return;
@@ -1123,7 +1169,7 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   let hit=false;for(const jet of [...fighterJets]){const start=b.previous,end=b.mesh.position,travel=end.clone().sub(start),lengthSq=travel.lengthSq(),t=lengthSq?T.MathUtils.clamp(jet.g.position.clone().sub(start).dot(travel)/lengthSq,0,1):0,closest=start.clone().addScaledVector(travel,t);if(closest.distanceTo(jet.g.position)<4.2){jetExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);photonExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);scene.remove(jet.g);fighterJets.splice(fighterJets.indexOf(jet),1);award(3000,'⚡ PHOTON JET DOWN!');popup('💥 ENEMY JET DISINTEGRATED!');hit=true;break}}if(!hit)for(const car of cars){if(car.crashed||car.alienTaken)continue;if(Math.abs(car.g.position.x-b.mesh.position.x)<car.w/2+1&&Math.abs(car.g.position.z-b.mesh.position.z)<car.l/2+2){car.crashed=true;car.life=.15;car.blastVy=0;car.blastVz=0;car.spin=0;photonExplosion(car.g.position.x,car.g.position.y+1.5,car.g.position.z);car.g.visible=false;award(car.oncoming?1400:900,'💥 PHOTON EXPLOSION!');hit=true;break}}
   if(!hit&&ufo){const a=b.previous,c=b.mesh.position,delta=c.clone().sub(a),length=delta.lengthSq(),t=length?T.MathUtils.clamp(ufo.g.position.clone().sub(a).dot(delta)/length,0,1):0,nearest=a.clone().addScaledVector(delta,t);if(nearest.distanceTo(ufo.g.position)<7.5){ufo.damage=(ufo.damage||0)+1;photonExplosion(nearest.x,nearest.y,nearest.z);ufo.g.position.x+=(Math.random()-.5)*7;popup('⚡ UFO HIT — SYSTEMS SPARKING!');if(ufo.damage>=4){photonExplosion(ufo.g.position.x,ufo.g.position.y,ufo.g.position.z);ufo.beamEnd=0;ufo.targetX+=(Math.random()-.5)*90;popup('🛸 UFO DISABLED — VEERING OFF!')}hit=true}}
   if(!hit)for(const o of [...sceneryParts.trees,...sceneryParts.grass]){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<3&&Math.abs(center.x-b.mesh.position.x)<3&&Math.abs(center.y-b.mesh.position.y)<12){photonExplosion(center.x,Math.max(1,b.mesh.position.y),center.z);o.mesh.position.z=-500;o.mesh.visible=false;hit=true;break}}
-  if(!hit)for(const o of sceneryParts.mountains){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<o.radius*o.mesh.scale.x&&Math.abs(center.x-b.mesh.position.x)<o.radius*o.mesh.scale.x&&b.mesh.position.y<o.height*o.mesh.scale.y+center.y){photonExplosion(b.mesh.position.x,b.mesh.position.y,b.mesh.position.z);o.mesh.scale.set(o.mesh.scale.x*.965,o.mesh.scale.y*.9,o.mesh.scale.z*.965);o.height*=.965;popup('⛰️ PHOTON BLAST — MOUNTAIN DAMAGED!');hit=true;break}}
+  if(!hit)for(const o of sceneryParts.mountains){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<o.radius*o.mesh.scale.x&&Math.abs(center.x-b.mesh.position.x)<o.radius*o.mesh.scale.x&&b.mesh.position.y<o.height*o.mesh.scale.y+center.y){if(blastMountain(o,b.mesh.position.clone())){popup('⛰️ MOUNTAIN CHUNK BLOWN AWAY!');hit=true;break}}}
   if(!hit)for(const y of mountainYetis){if(y.alienTaken)continue;if(Math.hypot(y.g.position.x-b.mesh.position.x,y.g.position.z-b.mesh.position.z)<3){y.mode='retreat';y.timer=5;y.cooldown=15;award(450,'⚡ YETI ZAPPED!');hit=true;break}}
   if(hit||b.life<=0||b.mesh.position.z< -230){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose();alienBolts.splice(i,1)}
  }
