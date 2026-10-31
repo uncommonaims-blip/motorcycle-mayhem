@@ -284,34 +284,49 @@ function buildMountainCave(mountain,radius,height,seed){
  const caveBackLight=new T.PointLight(0x93b9e8,1.7,65,1.4);caveBackLight.position.set(0,2,-68);tunnel.add(caveBackLight);
  const floorMesh=new T.Mesh(new T.BoxGeometry(10,.3,115*CAVE_LENGTH_MULTIPLIER),new T.MeshLambertMaterial({color:0x92919b}));floorMesh.position.set(0,-4.6,10-55*CAVE_LENGTH_MULTIPLIER);tunnel.add(floorMesh);
  // Glowing lava streams meander along the cave floor, away from the center riding line.
- const lavaMat=new T.MeshBasicMaterial({color:0xff5a09,side:T.DoubleSide});
- const lavaCoreMat=new T.MeshBasicMaterial({color:0xffbf36,side:T.DoubleSide});
- const lavaStreams=[];
- for(let stream=0;stream<2;stream++){
-  const side=stream===0?-1:1,points=[],core=[];
-  const steps=100,fullLength=115*CAVE_LENGTH_MULTIPLIER;
-  for(let j=0;j<=steps;j++){
-   const z=5-j*fullLength/steps;
-   const x=side*(3.4+.48*Math.sin(j*.29+stream*2)+.24*Math.sin(j*.77));
-   points.push(new T.Vector3(x,-4.43,z));
-   core.push(new T.Vector3(x,-4.39,z));
-  }
-  const curve=new T.CatmullRomCurve3(points),coreCurve=new T.CatmullRomCurve3(core);
-  const river=new T.Mesh(new T.TubeGeometry(curve,steps*2,.48,5,false),lavaMat);
-  const bright=new T.Mesh(new T.TubeGeometry(coreCurve,steps*2,.17,4,false),lavaCoreMat);
-  tunnel.add(river,bright);lavaStreams.push({river,bright});
+ // One meandering lava river, entering from a dark opening in the side wall.
+ const lavaMat=new T.MeshBasicMaterial({color:0xff4b08,side:T.DoubleSide});
+ const lavaCoreMat=new T.MeshBasicMaterial({color:0xffbd31,side:T.DoubleSide});
+ const stoneMat=new T.MeshLambertMaterial({color:0xaaa39a,flatShading:true});
+ const caveLength=115*CAVE_LENGTH_MULTIPLIER;
+ const bridgeLocations=[];
+ // Each crossing has a different safe lane; the rider must steer between them.
+ const lanes=[-2.5,0,2.5,0,-2.5,2.5,0,2.5,-2.5];
+ for(let j=0;j<lanes.length;j++)bridgeLocations.push({z:-38-j*68,x:lanes[j],halfWidth:.95});
+ const lavaCenter=z=>2.25*Math.sin((-z-8)*.017)+.85*Math.sin((-z)*.041);
+ const lavaWidth=z=>.65+.23*Math.sin((-z)*.032)**2+.14*Math.sin((-z)*.09)**2;
+ const segments=260,verts=[],coreVerts=[],indices=[];
+ for(let j=0;j<=segments;j++){
+  const z=5-j*caveLength/segments,center=lavaCenter(z),w=lavaWidth(z);
+  verts.push(center-w,-4.41,z,center+w,-4.41,z);
+  coreVerts.push(center-w*.28,-4.38,z,center+w*.28,-4.38,z);
+  if(j<segments){const k=j*2;indices.push(k,k+2,k+1,k+1,k+2,k+3)}
  }
- for(let j=0;j<9;j++){
-  const lamp=new T.PointLight(0xff5211,2.1,24,2);
-  lamp.position.set(j%2?-3.3:3.3,-3.2,-j*75-18);
-  tunnel.add(lamp);
+ const riverGeo=new T.BufferGeometry();riverGeo.setAttribute('position',new T.Float32BufferAttribute(verts,3));riverGeo.setIndex(indices);riverGeo.computeVertexNormals();
+ const coreGeo=new T.BufferGeometry();coreGeo.setAttribute('position',new T.Float32BufferAttribute(coreVerts,3));coreGeo.setIndex(indices);coreGeo.computeVertexNormals();
+ tunnel.add(new T.Mesh(riverGeo,lavaMat),new T.Mesh(coreGeo,lavaCoreMat));
+ // A short feeder from an opening in the wall leads into the single stream.
+ const feeder=new T.Mesh(new T.BoxGeometry(3.2,.05,1.25),lavaMat);feeder.position.set(3.6,-4.4,4);feeder.rotation.y=-.22;tunnel.add(feeder);
+ const mouth=new T.Mesh(new T.RingGeometry(.45,.95,12),new T.MeshBasicMaterial({color:0x171015,side:T.DoubleSide}));mouth.position.set(4.65,-3.9,4);mouth.rotation.y=-Math.PI/2;tunnel.add(mouth);
+ for(const bridge of bridgeLocations){
+  // Raised stone crossing, aligned with the direction of travel, covering the molten river.
+  const slab=new T.Mesh(new T.BoxGeometry(bridge.halfWidth*2,.28,6.8),stoneMat);
+  slab.position.set(bridge.x,-4.19,bridge.z);tunnel.add(slab);
+  const left=new T.Mesh(new T.BoxGeometry(.12,.14,6.8),stoneMat);
+  left.position.set(bridge.x-bridge.halfWidth,-4.02,bridge.z);tunnel.add(left);
+  const right=left.clone();right.position.x=bridge.x+bridge.halfWidth;tunnel.add(right);
  }
- const spikeMat=new T.MeshLambertMaterial({color:0xb5b6bf,flatShading:true});const caveSpikes=[];
+ for(let j=0;j<13;j++){
+  const z=-j*52-15,lamp=new T.PointLight(0xff5411,2.3,25,2);
+  lamp.position.set(lavaCenter(z),-3.5,z);tunnel.add(lamp);
+ }
+  const spikeMat=new T.MeshLambertMaterial({color:0xb5b6bf,flatShading:true});const caveSpikes=[];
  for(let k=0;k<32*CAVE_LENGTH_MULTIPLIER;k++){const z=-5-k*3.2,x=(k%5-2)*1.7,length=.5+scenerySeed(seed*37+k)*1.9;
+  if(bridgeLocations.some(bridge=>Math.abs(z-bridge.z)<11))continue;
   const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?0:Math.PI;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
  // Dark end wall prevents the open world showing through the far tunnel mouth.
  const back=new T.Mesh(new T.CircleGeometry(5,12),new T.MeshBasicMaterial({color:0x10131d,side:T.DoubleSide}));back.position.z=12-115*CAVE_LENGTH_MULTIPLIER;tunnel.add(back);
- mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
+ mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,lavaCenter,lavaWidth,bridgeLocations,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
  return cave;
 }
 function makeYeti(mountain,seed){
@@ -424,6 +439,15 @@ function updateCaveRide(dt){
   bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
   bike.position.y=T.MathUtils.damp(bike.position.y,ride.floorY,6,dt);
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
+  ride.lavaCooldown=Math.max(0,(ride.lavaCooldown||0)-dt);
+  const caveZ=bike.position.z-ride.tunnel.position.z;
+  const caveX=bike.position.x-ride.tunnel.position.x;
+  const overLava=Math.abs(caveX-ride.lavaCenter(caveZ))<ride.lavaWidth(caveZ)+.28;
+  const onBridge=ride.bridgeLocations.some(bridge=>Math.abs(caveZ-bridge.z)<3.5&&Math.abs(caveX-bridge.x)<bridge.halfWidth);
+  if(overLava&&!onBridge&&ride.lavaCooldown<=0){
+   health=Math.max(1,health-4);ride.lavaCooldown=.65;
+   popup('🔥 LAVA! -4 HP');
+  }
   let closestDanger=Infinity;
   for(const spike of ride.spikes){
    if(spike.userData.broken||spike.position.y>0)continue;
