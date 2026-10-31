@@ -285,7 +285,7 @@ function buildMountainCave(mountain,radius,height,seed){
  const floorMesh=new T.Mesh(new T.BoxGeometry(10,.3,115*CAVE_LENGTH_MULTIPLIER),new T.MeshLambertMaterial({color:0x92919b}));floorMesh.position.set(0,-4.6,10-55*CAVE_LENGTH_MULTIPLIER);tunnel.add(floorMesh);
  const spikeMat=new T.MeshLambertMaterial({color:0xb5b6bf,flatShading:true});const caveSpikes=[];
  for(let k=0;k<32*CAVE_LENGTH_MULTIPLIER;k++){const z=-5-k*3.2,x=(k%5-2)*1.7,length=.5+scenerySeed(seed*37+k)*1.9;
-  const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?Math.PI:0;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
+  const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?0:Math.PI;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
  // Dark end wall prevents the open world showing through the far tunnel mouth.
  const back=new T.Mesh(new T.CircleGeometry(5,12),new T.MeshBasicMaterial({color:0x10131d,side:T.DoubleSide}));back.position.z=12-115*CAVE_LENGTH_MULTIPLIER;tunnel.add(back);
  mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
@@ -397,7 +397,7 @@ function updateCaveRide(dt){
   bike.position.y=T.MathUtils.damp(bike.position.y,ride.floorY,6,dt);
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
   for(const spike of ride.spikes){
-   if(spike.userData.broken||spike.rotation.z===0)continue;
+   if(spike.userData.broken||spike.position.y>0)continue;
    const world=new T.Vector3();spike.getWorldPosition(world);
    const distance=Math.abs(world.z-bike.position.z);
    const height=spike.userData.length;
