@@ -1319,7 +1319,7 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   if(active){
    u.beam.material.opacity=.16+Math.sin(u.age*11)*.035;
    const bx=u.g.position.x,bz=u.g.position.z;
-   if(alienAbduction<=0&&!u.subjects.has(bike)&&crashTimer<=0&&Math.hypot(bike.position.x-bx,bike.position.z-bz)<6.5){alienAbduction=4.1;alienHover=false;alienTransform.textContent='🛸 TRANSFORM';u.subjects.add(bike);alienFloating.push({type:'bike',obj:bike,originY:bike.position.y,returnX:bike.position.x,progress:0,life:4.1,ufo:u});popup('👽 ABDUCTED! ALIEN EXPERIMENT IN PROGRESS!')}
+   if(!caveRide&&alienAbduction<=0&&!u.subjects.has(bike)&&crashTimer<=0&&Math.hypot(bike.position.x-bx,bike.position.z-bz)<6.5){alienAbduction=4.1;alienHover=false;alienTransform.textContent='🛸 TRANSFORM';u.subjects.add(bike);alienFloating.push({type:'bike',obj:bike,originY:bike.position.y,returnX:bike.position.x,progress:0,life:4.1,ufo:u});popup('👽 ABDUCTED! ALIEN EXPERIMENT IN PROGRESS!')}
    for(const car of cars){if(car.alienTaken||car.crashed)continue;if(Math.hypot(car.g.position.x-bx,car.g.position.z-bz)<6){car.alienTaken=true;u.subjects.add(car);alienFloating.push({type:'car',obj:car,originY:car.g.position.y,progress:0,life:4.4,ufo:u})}}
    for(const yeti of mountainYetis){if(yeti.alienTaken)continue;if(Math.hypot(yeti.g.position.x-bx,yeti.g.position.z-bz)<6){yeti.alienTaken=true;u.subjects.add(yeti);alienFloating.push({type:'yeti',obj:yeti,originY:yeti.g.position.y,progress:0,life:4.4,ufo:u})}}
   }
