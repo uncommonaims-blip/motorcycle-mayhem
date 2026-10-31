@@ -1504,7 +1504,7 @@ sunsetPanel.material.opacity=1;
 mandalaDisc.visible=sunsetPanel.visible&&shroomTimer>0;
 mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+shroomLevel*.12);mandalaDisc.scale.setScalar(1+.17*Math.sin(dayCycle*3.3)+.045*Math.sin(dayCycle*8));mandalaDisc.material.opacity=.8+.2*Math.sin(dayCycle*4.7);
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*330;
-nightHeadlight.intensity=nightAmount*95;headlight.material.color.setHex(nightAmount>.3?0xffffff:0xfff1b0);
+nightHeadlight.intensity=caveRide?95:nightAmount*95;headlight.material.color.setHex(caveRide||nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
 document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);updateCaveRide(dt);updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);
 if(caveRide){
