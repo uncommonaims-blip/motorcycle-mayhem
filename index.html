@@ -266,7 +266,19 @@ function buildMountainCave(mountain,radius,height,seed){
  }
  const tunnel=new T.Group();tunnel.visible=false;scene.add(tunnel);
  const tunnelMat=new T.MeshLambertMaterial({color:0x647184,side:T.BackSide,flatShading:true});
- const shell=new T.Mesh(new T.CylinderGeometry(5,5,115*CAVE_LENGTH_MULTIPLIER,12,36,true),tunnelMat);shell.rotation.x=Math.PI/2;shell.position.z=10-55*CAVE_LENGTH_MULTIPLIER;tunnel.add(shell);
+ const shellGeometry=new T.CylinderGeometry(5,5,115*CAVE_LENGTH_MULTIPLIER,16,72,true);
+ const vertices=shellGeometry.getAttribute('position');
+ for(let i=0;i<vertices.count;i++){
+  const y=vertices.getY(i),theta=Math.atan2(vertices.getZ(i),vertices.getX(i));
+  const t=(y/(115*CAVE_LENGTH_MULTIPLIER)+.5);
+  const chamber=Math.pow(Math.max(0,Math.sin(t*Math.PI*5.5)),4);
+  const pinch=Math.pow(Math.max(0,Math.sin(t*Math.PI*7.2+1.1)),7);
+  const radius=5+chamber*5.2-pinch*1.7+.2*Math.sin(theta*7+t*43);
+  vertices.setX(i,Math.cos(theta)*radius+Math.sin(t*11)*1.1);
+  vertices.setZ(i,Math.sin(theta)*radius);
+ }
+ vertices.needsUpdate=true;shellGeometry.computeVertexNormals();
+ const shell=new T.Mesh(shellGeometry,tunnelMat);shell.rotation.x=Math.PI/2;shell.position.z=10-55*CAVE_LENGTH_MULTIPLIER;tunnel.add(shell);
  // Gentle tunnel fill light follows the cave itself, preserving depth and contrast.
  const caveLight=new T.PointLight(0xffe4b5,2.5,85,1.3);caveLight.position.set(0,1,-22);tunnel.add(caveLight);
  const caveBackLight=new T.PointLight(0x93b9e8,1.7,65,1.4);caveBackLight.position.set(0,2,-68);tunnel.add(caveBackLight);
@@ -385,7 +397,7 @@ function updateCaveRide(dt){
   bike.position.y=T.MathUtils.damp(bike.position.y,ride.floorY,6,dt);
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
   for(const spike of ride.spikes){
-   if(spike.userData.broken)continue;
+   if(spike.userData.broken||spike.rotation.z===0)continue;
    const world=new T.Vector3();spike.getWorldPosition(world);
    const distance=Math.abs(world.z-bike.position.z);
    const height=spike.userData.length;
