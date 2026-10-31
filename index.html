@@ -198,7 +198,7 @@ horizonReset.onclick=()=>{if(sunsetPanel.material.map!==defaultHorizonTexture)su
 horizonUpload.onchange=()=>{const file=horizonUpload.files&&horizonUpload.files[0];if(!file)return;if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>15*1024*1024){popup("USE A JPG, PNG, WEBP OR GIF UNDER 15 MB");return}const url=URL.createObjectURL(file);new T.TextureLoader().load(url,texture=>{// Fit the complete uploaded picture inside half the backdrop, preserving its aspect ratio.
 const image=texture.image,canvas=document.createElement("canvas");canvas.width=1024;canvas.height=1024;
 const ctx=canvas.getContext("2d");ctx.drawImage(sunsetCanvas,0,0,canvas.width,canvas.height);
-const fit=Math.min(canvas.width*.5/image.width,canvas.height*.5/image.height);
+const fit=Math.min(canvas.width*.25/image.width,canvas.height*.25/image.height);
 const w=Math.max(1,image.width*fit),h=Math.max(1,image.height*fit);
 ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
 ctx.drawImage(image,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
