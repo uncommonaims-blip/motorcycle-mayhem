@@ -1100,9 +1100,29 @@ function blastMountainSurface(mountain,point,hitMesh=mountain.mesh){
  if(!trianglesRemoved)return false;
  // Count remaining rock triangles in the lower third of the mountain.
  function baseCount(geometry){if(!geometry||!geometry.index)return 0;const pos=geometry.getAttribute('position'),idx=geometry.index.array;let count=0;for(let i=0;i<idx.length;i+=3){const y=(pos.getY(idx[i])+pos.getY(idx[i+1])+pos.getY(idx[i+2]))/3;if(y< -mountain.height*.17)count++}return count}
+ // If the supporting rock has been removed beneath the snowy summit, collapse
+ // the remaining cap even when a separate lower rock strip still survives.
+ const remainingRock=mountain.highGeometry;
+ const rockPos=remainingRock.getAttribute('position'),rockIdx=remainingRock.index.array;
+ let upperRock=0,upperSupported=0;
+ for(let j=0;j<rockIdx.length;j+=3){
+  const a=rockIdx[j],b=rockIdx[j+1],c=rockIdx[j+2];
+  const x=(rockPos.getX(a)+rockPos.getX(b)+rockPos.getX(c))/3;
+  const y=(rockPos.getY(a)+rockPos.getY(b)+rockPos.getY(c))/3;
+  const z=(rockPos.getZ(a)+rockPos.getZ(b)+rockPos.getZ(c))/3;
+  if(y>mountain.height*.1){upperRock++;if(Math.hypot(x,z)<mountain.radius*.42)upperSupported++}
+ }
+ // Count the original rock under the summit separately from the broad base.
+ const initial=mountain.originalHighGeometry,ip=initial.getAttribute('position'),ii=initial.index.array;
+ let originalUpper=0;
+ for(let j=0;j<ii.length;j+=3){
+  const a=ii[j],b=ii[j+1],c=ii[j+2],x=(ip.getX(a)+ip.getX(b)+ip.getX(c))/3,y=(ip.getY(a)+ip.getY(b)+ip.getY(c))/3,z=(ip.getZ(a)+ip.getZ(b)+ip.getZ(c))/3;
+  if(y>mountain.height*.1&&Math.hypot(x,z)<mountain.radius*.42)originalUpper++;
+ }
+ const summitUnsupported=originalUpper>0&&upperSupported<=originalUpper*.5;
  const originalSupport=Math.max(1,baseCount(mountain.originalHighGeometry));
  const remainingSupport=baseCount(mountain.highGeometry);
- if(remainingSupport<=originalSupport*.5){
+ if(remainingSupport<=originalSupport*.5||summitUnsupported){
   mountain.collapsed=true;mesh.visible=false;
   const origin=mesh.localToWorld(new T.Vector3(0,mountain.height*.16,0));
   for(let i=0;i<45;i++){const rock=new T.Mesh(new T.TetrahedronGeometry(1+Math.random()*2.8),new T.MeshLambertMaterial({color:i%3===0?0xe9f3fa:0x788b9a,flatShading:true}));rock.position.copy(origin).add(new T.Vector3((Math.random()-.5)*mountain.radius,Math.random()*mountain.height*.45,(Math.random()-.5)*mountain.radius));scene.add(rock);mountainShards.push({rock,velocity:new T.Vector3((Math.random()-.5)*22,5+Math.random()*19,(Math.random()-.5)*22),life:1.8+Math.random()})}
@@ -1173,12 +1193,12 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   obj.rotation.z+=dt*4;obj.rotation.x+=dt*2;
   if(a.life<=0){obj.scale.setScalar(1);obj.visible=true;obj.rotation.z=0;obj.rotation.x=0;if(a.type!=='bike')a.obj.alienTaken=false;alienRelease(a);alienFloating.splice(i,1)}
  }
- if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,85);bike.position.x=T.MathUtils.clamp(bike.position.x+alienStickX*dt*21,-120,120)}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){const ground=mountainHeightAt(bike.position.x,bike.position.z);alienHoverGround=T.MathUtils.damp(alienHoverGround,ground,2,dt);bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,alienHoverGround+alienAltitude),3,dt);bike.rotation.z=Math.sin(ufoClock*3)*.04}
+ if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,85);bike.position.x+=alienStickX*dt*21}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){const ground=mountainHeightAt(bike.position.x,bike.position.z);alienHoverGround=T.MathUtils.damp(alienHoverGround,ground,2,dt);bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,alienHoverGround+alienAltitude),3,dt);bike.rotation.z=Math.sin(ufoClock*3)*.04}
  for(const w of alienWheels)w.rotation.y=T.MathUtils.damp(w.rotation.y,alienHover?0:Math.PI/2,8,dt);alienUp.style.display=alienHover?'none':'none';flightStick.style.display=alienHover?'block':'none';
  for(let i=alienBolts.length-1;i>=0;i--){const b=alienBolts[i];b.life-=dt;b.previous.copy(b.mesh.position);b.mesh.position.z-=dt*120;b.mesh.scale.setScalar(1+Math.sin(b.life*22)*.2);
   let hit=false;for(const jet of [...fighterJets]){const start=b.previous,end=b.mesh.position,travel=end.clone().sub(start),lengthSq=travel.lengthSq(),t=lengthSq?T.MathUtils.clamp(jet.g.position.clone().sub(start).dot(travel)/lengthSq,0,1):0,closest=start.clone().addScaledVector(travel,t);if(closest.distanceTo(jet.g.position)<4.2){jetExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);photonExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);scene.remove(jet.g);fighterJets.splice(fighterJets.indexOf(jet),1);award(3000,'⚡ PHOTON JET DOWN!');popup('💥 ENEMY JET DISINTEGRATED!');hit=true;break}}if(!hit)for(const car of cars){if(car.crashed||car.alienTaken)continue;if(Math.abs(car.g.position.x-b.mesh.position.x)<car.w/2+1&&Math.abs(car.g.position.z-b.mesh.position.z)<car.l/2+2){car.crashed=true;car.life=.15;car.blastVy=0;car.blastVz=0;car.spin=0;photonExplosion(car.g.position.x,car.g.position.y+1.5,car.g.position.z);car.g.visible=false;award(car.oncoming?1400:900,'💥 PHOTON EXPLOSION!');hit=true;break}}
   if(!hit&&ufo){const a=b.previous,c=b.mesh.position,delta=c.clone().sub(a),length=delta.lengthSq(),t=length?T.MathUtils.clamp(ufo.g.position.clone().sub(a).dot(delta)/length,0,1):0,nearest=a.clone().addScaledVector(delta,t);if(nearest.distanceTo(ufo.g.position)<7.5){ufo.damage=(ufo.damage||0)+1;photonExplosion(nearest.x,nearest.y,nearest.z);ufo.g.position.x+=(Math.random()-.5)*7;popup('⚡ UFO HIT — SYSTEMS SPARKING!');if(ufo.damage>=4){photonExplosion(ufo.g.position.x,ufo.g.position.y,ufo.g.position.z);ufo.beamEnd=0;ufo.targetX+=(Math.random()-.5)*90;popup('🛸 UFO DISABLED — VEERING OFF!')}hit=true}}
-  if(!hit)for(const o of [...sceneryParts.trees,...sceneryParts.grass]){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<3&&Math.abs(center.x-b.mesh.position.x)<3&&Math.abs(center.y-b.mesh.position.y)<12){photonExplosion(center.x,Math.max(1,b.mesh.position.y),center.z);o.mesh.position.z=-500;o.mesh.visible=false;hit=true;break}}
+  if(!hit)for(const o of sceneryParts.trees){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<3&&Math.abs(center.x-b.mesh.position.x)<3&&Math.abs(center.y-b.mesh.position.y)<12){photonExplosion(center.x,Math.max(1,b.mesh.position.y),center.z);o.mesh.position.z=-500;o.mesh.visible=false;hit=true;break}}
   if(!hit){const travel=b.mesh.position.clone().sub(b.previous),distance=travel.length();if(distance>0){const ray=new T.Raycaster(b.previous,travel.normalize(),0,distance+0.1);const candidates=sceneryParts.mountains.filter(o=>o.mesh.visible&&Math.abs(o.mesh.position.z-b.mesh.position.z)<o.radius+distance+10&&Math.abs(o.mesh.position.x-b.mesh.position.x)<o.radius+10).map(o=>o.mesh);const impacts=ray.intersectObjects(candidates,true);if(impacts.length){const impact=impacts[0],mountain=sceneryParts.mountains.find(o=>impact.object===o.mesh||o.mesh.children.includes(impact.object));if(mountain){if(blastMountainSurface(mountain,impact.point,impact.object)){hit=true;popup('⛰️ MOUNTAIN CHUNK BLOWN AWAY!')}}}}}
   if(!hit)for(const y of [...mountainYetis]){if(y.alienTaken||!y.g.visible)continue;
    const start=b.previous,end=b.mesh.position,segment=end.clone().sub(start),len2=segment.lengthSq();
