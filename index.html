@@ -289,13 +289,22 @@ function buildMountainCave(mountain,radius,height,seed){
  const lavaCoreMat=new T.MeshBasicMaterial({color:0xffbd31,side:T.DoubleSide});
  const stoneMat=new T.MeshLambertMaterial({color:0xaaa39a,flatShading:true});
  const caveLength=115*CAVE_LENGTH_MULTIPLIER;
- const bridgeLocations=[];
- // Each crossing has a different safe lane; the rider must steer between them.
- const lanes=[-2.5,0,2.5,0,-2.5,2.5,0,2.5,-2.5];
- for(let j=0;j<lanes.length;j++)bridgeLocations.push({z:-38-j*68,x:lanes[j],halfWidth:1.05});
- // Broad, nearly crosswise sweeps: the river enters one wall and crosses toward the other.
+ // Bridge positions are derived from the actual river, not independent coordinates.
+ // Each stone crossing covers the stream at that location with a generous rideable approach.
  const lavaCenter=z=>4.15*Math.sin((-z-8)*.053)+.38*Math.sin((-z)*.106);
  const lavaWidth=z=>.65+.23*Math.sin((-z)*.032)**2+.14*Math.sin((-z)*.09)**2;
+ const bridgeLocations=[];
+ const lanes=[-2.5,0,2.5,0,-2.5,2.5,0,2.5,-2.5];
+ for(let j=0;j<lanes.length;j++){
+  const target=lanes[j],nominal=-38-j*68;
+  let bestZ=nominal,best=Infinity;
+  for(let step=-22;step<=22;step++){
+   const z=nominal+step*.5,score=Math.abs(lavaCenter(z)-target)+Math.abs(step)*.003;
+   if(score<best){best=score;bestZ=z}
+  }
+  const center=lavaCenter(bestZ);
+  bridgeLocations.push({z:bestZ,x:center,halfWidth:1.15,halfLength:6});
+ }
  const segments=600,verts=[],coreVerts=[],indices=[];
  for(let j=0;j<=segments;j++){
   const z=5-j*caveLength/segments,center=lavaCenter(z),w=lavaWidth(z);
@@ -309,13 +318,34 @@ function buildMountainCave(mountain,radius,height,seed){
  // A short feeder from an opening in the wall leads into the single stream.
  const feeder=new T.Mesh(new T.BoxGeometry(3.2,.05,1.25),lavaMat);feeder.position.set(3.6,-4.4,4);feeder.rotation.y=-.22;tunnel.add(feeder);
  const mouth=new T.Mesh(new T.RingGeometry(.45,.95,12),new T.MeshBasicMaterial({color:0x171015,side:T.DoubleSide}));mouth.position.set(4.65,-3.9,4);mouth.rotation.y=-Math.PI/2;tunnel.add(mouth);
+ // Irregular, cave-colored natural stone arches with continuous safe riding surfaces.
+ const archMat=new T.MeshLambertMaterial({color:0x777b87,flatShading:true,side:T.DoubleSide});
  for(const bridge of bridgeLocations){
-  // Raised stone crossing, aligned with the direction of travel, covering the molten river.
-  const slab=new T.Mesh(new T.BoxGeometry(bridge.halfWidth*2,.28,9),stoneMat);
-  slab.position.set(bridge.x,-4.19,bridge.z);tunnel.add(slab);
-  const left=new T.Mesh(new T.BoxGeometry(.12,.14,9),stoneMat);
-  left.position.set(bridge.x-bridge.halfWidth,-4.02,bridge.z);tunnel.add(left);
-  const right=left.clone();right.position.x=bridge.x+bridge.halfWidth;tunnel.add(right);
+  const slices=18,vertices=[],indices=[];
+  for(let i=0;i<=slices;i++){
+   const t=i/slices,z=bridge.z+(t-.5)*bridge.halfLength*2;
+   const riverX=lavaCenter(z);
+   // Follow the river so there are no gaps between visual stone and safe collision.
+   const cx=bridge.x+(riverX-bridge.x)*.85;
+   const irregular=.07*Math.sin(i*2.1+bridge.z);
+   const w=bridge.halfWidth+irregular;
+   const y=-4.15+.10*Math.sin(t*Math.PI)+.035*Math.sin(i*1.7);
+   vertices.push(cx-w,y,z,cx+w,y+.025*Math.sin(i*1.3),z);
+   if(i<slices){const k=i*2;indices.push(k,k+2,k+1,k+1,k+2,k+3)}
+  }
+  const geo=new T.BufferGeometry();
+  geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+  geo.setIndex(indices);geo.computeVertexNormals();
+  tunnel.add(new T.Mesh(geo,archMat));
+  // Uneven rock shoulders give the crossing the appearance of a natural stone arch.
+  for(const side of [-1,1]){
+   for(let i=0;i<5;i++){
+    const z=bridge.z+(i-2)*2.2,cx=bridge.x+(lavaCenter(z)-bridge.x)*.85;
+    const rock=new T.Mesh(new T.DodecahedronGeometry(.22+.12*((i+2)%3),0),archMat);
+    rock.position.set(cx+side*(bridge.halfWidth+.04),-4.16,z);
+    rock.scale.set(1,.5,1.25);tunnel.add(rock);
+   }
+  }
  }
  for(let j=0;j<13;j++){
   const z=-j*52-15,lamp=new T.PointLight(0xff5411,2.3,25,2);
@@ -444,7 +474,7 @@ function updateCaveRide(dt){
   const caveZ=bike.position.z-ride.tunnel.position.z;
   const caveX=bike.position.x-ride.tunnel.position.x;
   const overLava=Math.abs(caveX-ride.lavaCenter(caveZ))<ride.lavaWidth(caveZ)+.28;
-  const onBridge=ride.bridgeLocations.some(bridge=>Math.abs(caveZ-bridge.z)<4.5&&Math.abs(caveX-bridge.x)<bridge.halfWidth);
+  const onBridge=ride.bridgeLocations.some(bridge=>{if(Math.abs(caveZ-bridge.z)>bridge.halfLength)return false;const cx=bridge.x+(ride.lavaCenter(caveZ)-bridge.x)*.85;return Math.abs(caveX-cx)<bridge.halfWidth-.12;});
   if(overLava&&!onBridge&&ride.lavaCooldown<=0){
    health=Math.max(1,health-4);ride.lavaCooldown=.65;
    popup('🔥 LAVA! -4 HP');
