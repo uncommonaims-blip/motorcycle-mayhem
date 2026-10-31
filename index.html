@@ -239,7 +239,7 @@ const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycl
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
 const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
 let mountainVisibilityFrame=0;function updateMountainVisibility(dt){if(++mountainVisibilityFrame%6!==0)return;mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.filter(o=>o.mesh.visible&&Math.abs(o.mesh.position.z-camera.position.z)<180&&Math.abs(o.mesh.position.x-camera.position.x)<125).map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;if(o.mesh.userData.lastOcclusion!==target){o.mesh.userData.lastOcclusion=target;o.mesh.traverse(child=>{if(child===o.mesh||!child.isMesh||!child.material)return;child.material.opacity=target;child.material.transparent=target<1;child.material.depthWrite=target>=1})}}}
-function mountainHeightAt(x,z){let height=0;const ray=new T.Raycaster(new T.Vector3(x,180,z),new T.Vector3(0,-1,0),0,300);for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;if(Math.hypot(dx,dz)>o.radius*1.4)continue;o.mesh.updateWorldMatrix(true,false);const intersections=ray.intersectObject(o.mesh,false);if(intersections.length)height=Math.max(height,intersections[0].point.y)}return Math.max(0,height)}
+function mountainHeightAt(x,z){let height=0;const ray=new T.Raycaster(new T.Vector3(x,180,z),new T.Vector3(0,-1,0),0,300);for(const o of sceneryParts.mountains){if(!o.mesh.visible||o.collapsed)continue;const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;if(Math.hypot(dx,dz)>o.radius*1.4)continue;o.mesh.updateWorldMatrix(true,false);const intersections=ray.intersectObject(o.mesh,false);if(intersections.length)height=Math.max(height,intersections[0].point.y)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
 const mountainMat=new T.MeshLambertMaterial({color:0x8299ad,flatShading:true,side:T.DoubleSide});
@@ -403,7 +403,7 @@ let mayhemLodFrame=0;let treeBumpCooldown=0;function updateSceneryParallax(dt){t
  for(const o of sceneryParts.mountains){o.mesh.position.z+=advance*.24;if(o.mesh.position.z>45)o.mesh.position.z-=300}
  for(const o of sceneryParts.mountains)o.mesh.position.x=o.x;
  for(const o of sceneryParts.trees)o.mesh.position.x=o.x+x*[.42,.23,.11][o.layer];
- for(const o of sceneryParts.grass)o.mesh.position.x=o.x+x*.62;if(playing&&!paused&&crashTimer<=0&&airTime<=0&&!alienHover&&treeBumpCooldown<=0){for(const t of sceneryParts.trees){if(!t.mesh.visible||Math.abs(t.mesh.position.z-bike.position.z)>2.5||Math.abs(t.mesh.position.x-bike.position.x)>2.1)continue;const side=bike.position.x>=t.mesh.position.x?1:-1;bike.position.x=t.mesh.position.x+side*2.5;speed=Math.max(12,speed*.68);bike.rotation.z=side*.22;treeBumpCooldown=.85;popup('🌲 TREE IMPACT — DEFLECTED!');break}}const far=alienHover?205:165;for(const o of sceneryParts.mountains)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<far&&Math.abs(o.mesh.position.x-bike.position.x)<155;for(const o of sceneryParts.trees)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<120&&Math.abs(o.mesh.position.x-bike.position.x)<105;for(const o of sceneryParts.grass)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<75;if(++mayhemLodFrame%8===0){for(const o of sceneryParts.mountains){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?94:82);if(near!==o.lodNear){o.mesh.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}for(const o of sceneryParts.trees){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?53:43);if(near!==o.lodNear){o.canopy.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}}
+ for(const o of sceneryParts.grass)o.mesh.position.x=o.x+x*.62;if(playing&&!paused&&crashTimer<=0&&airTime<=0&&!alienHover&&treeBumpCooldown<=0){for(const t of sceneryParts.trees){if(!t.mesh.visible||Math.abs(t.mesh.position.z-bike.position.z)>2.5||Math.abs(t.mesh.position.x-bike.position.x)>2.1)continue;const side=bike.position.x>=t.mesh.position.x?1:-1;bike.position.x=t.mesh.position.x+side*2.5;speed=Math.max(12,speed*.68);bike.rotation.z=side*.22;treeBumpCooldown=.85;popup('🌲 TREE IMPACT — DEFLECTED!');break}}const far=alienHover?205:165;for(const o of sceneryParts.mountains)o.mesh.visible=!o.collapsed&&Math.abs(o.mesh.position.z-bike.position.z)<far&&Math.abs(o.mesh.position.x-bike.position.x)<155;for(const o of sceneryParts.trees)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<120&&Math.abs(o.mesh.position.x-bike.position.x)<105;for(const o of sceneryParts.grass)o.mesh.visible=Math.abs(o.mesh.position.z-bike.position.z)<75;if(++mayhemLodFrame%8===0){for(const o of sceneryParts.mountains){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?94:82);if(near!==o.lodNear){o.mesh.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}for(const o of sceneryParts.trees){const d=Math.hypot(o.mesh.position.x-bike.position.x,o.mesh.position.z-bike.position.z);const near=d<(o.lodNear?53:43);if(near!==o.lodNear){o.canopy.geometry=near?o.highGeometry:o.lowGeometry;o.lodNear=near}}}
 }
 const lines=[];for(let z=-390;z<50;z+=16)for(let x of [-6,0,6])lines.push(cube(.22,.02,7,white,x,.01,z));
 /* Mushroom road hallucination: visual mesh waves only; collision lanes remain stable. */
@@ -1067,7 +1067,7 @@ addEventListener('keyup',e=>{if(e.key.toLowerCase()==='u')alienClimb=false});fun
 // Real surface-only mountain hits: empty air never absorbs a photon.
 const mountainShards=[];
 function blastMountainSurface(mountain,point,hitMesh=mountain.mesh){
- const mesh=mountain.mesh;mesh.updateWorldMatrix(true,true);
+ const mesh=mountain.mesh;if(mountain.collapsed)return false;mesh.updateWorldMatrix(true,true);if(!mountain.originalHighGeometry)mountain.originalHighGeometry=mountain.highGeometry;
  const local=mesh.worldToLocal(point.clone()),base=new T.Vector3(0,-mountain.height/2,0);
  const outward=local.clone().sub(base).normalize(),worldOut=outward.clone().transformDirection(mesh.matrixWorld);
  const blastRadius=mountain.radius*.7,blastHeight=mountain.height*.5;
@@ -1098,6 +1098,16 @@ function blastMountainSurface(mountain,point,hitMesh=mountain.mesh){
   if(cut.removed){snow.geometry=cut.geometry;trianglesRemoved+=cut.removed}
  }
  if(!trianglesRemoved)return false;
+ // Count remaining rock triangles in the lower third of the mountain.
+ function baseCount(geometry){if(!geometry||!geometry.index)return 0;const pos=geometry.getAttribute('position'),idx=geometry.index.array;let count=0;for(let i=0;i<idx.length;i+=3){const y=(pos.getY(idx[i])+pos.getY(idx[i+1])+pos.getY(idx[i+2]))/3;if(y< -mountain.height*.17)count++}return count}
+ const originalSupport=Math.max(1,baseCount(mountain.originalHighGeometry));
+ const remainingSupport=baseCount(mountain.highGeometry);
+ if(remainingSupport<=originalSupport*.5){
+  mountain.collapsed=true;mesh.visible=false;
+  const origin=mesh.localToWorld(new T.Vector3(0,mountain.height*.16,0));
+  for(let i=0;i<45;i++){const rock=new T.Mesh(new T.TetrahedronGeometry(1+Math.random()*2.8),new T.MeshLambertMaterial({color:i%3===0?0xe9f3fa:0x788b9a,flatShading:true}));rock.position.copy(origin).add(new T.Vector3((Math.random()-.5)*mountain.radius,Math.random()*mountain.height*.45,(Math.random()-.5)*mountain.radius));scene.add(rock);mountainShards.push({rock,velocity:new T.Vector3((Math.random()-.5)*22,5+Math.random()*19,(Math.random()-.5)*22),life:1.8+Math.random()})}
+  photonExplosion(origin.x,origin.y,origin.z);popup('⛰️ MOUNTAIN COLLAPSE — SUPPORT LOST!');return true;
+ }
  const count=Math.min(26,Math.max(10,Math.round(trianglesRemoved*.4)));
  for(let i=0;i<count;i++){
   const rock=new T.Mesh(new T.TetrahedronGeometry(.5+Math.random()*1.3),new T.MeshLambertMaterial({color:i%3?0x718392:0xeaf2f7,flatShading:true}));
