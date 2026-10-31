@@ -1057,17 +1057,43 @@ function fireAlienPhoton(){
  const bolt=new T.Mesh(new T.SphereGeometry(.38,8,6),new T.MeshBasicMaterial({color:0x79fff6}));
  bolt.position.set(bike.position.x,bike.position.y+1.8,bike.position.z-3);scene.add(bolt);alienBolts.push({mesh:bolt,life:1.5,previous:bolt.position.clone(),velocity:new T.Vector3(photonAimX*85,photonAimY*85,-120).normalize().multiplyScalar(120)}); 
 }
-// The photon fire button doubles as an aim joystick: drag while holding to steer shots.
+// Photon control matches the flight joystick: circular track and movable lightning thumb.
+alienFire.innerHTML='<span id="photonThumb" aria-hidden="true">⚡</span>';
+alienFire.setAttribute('aria-label','Aim and fire photon gun');
+alienFire.title='Drag lightning bolt to aim; hold to fire';
+alienFire.style.setProperty('width','96px','important');
+alienFire.style.setProperty('height','96px','important');
+alienFire.style.setProperty('min-width','96px','important');
+alienFire.style.setProperty('min-height','96px','important');
+alienFire.style.setProperty('padding','0','important');
+alienFire.style.setProperty('border-radius','50%','important');
+alienFire.style.setProperty('border','3px solid #ffffffa8','important');
+alienFire.style.setProperty('background','#ffffff24','important');
+alienFire.style.setProperty('position','relative','important');
+alienFire.style.setProperty('touch-action','none','important');
+const photonThumb=alienFire.firstElementChild;
+photonThumb.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:32px;height:32px;font-size:25px;line-height:1;pointer-events:none;filter:drop-shadow(0 0 5px #ffe36d)';
 let photonPointer=null;
 function movePhotonAim(e){
- const rect=alienFire.getBoundingClientRect(),radius=Math.max(25,Math.min(rect.width,rect.height)*.5);
- photonAimX=T.MathUtils.clamp((e.clientX-rect.left-rect.width/2)/radius,-1,1);
- photonAimY=T.MathUtils.clamp((rect.top+rect.height/2-e.clientY)/radius,-1,1);
+ const rect=alienFire.getBoundingClientRect(),radius=Math.max(10,Math.min(rect.width,rect.height)/2-10);
+ let x=(e.clientX-rect.left-rect.width/2)/radius,y=(e.clientY-rect.top-rect.height/2)/radius;
+ const length=Math.hypot(x,y);if(length>1){x/=length;y/=length}
+ photonAimX=x;photonAimY=-y;
+ photonThumb.style.left=(50+x*radius/rect.width*100)+'%';
+ photonThumb.style.top=(50+y*radius/rect.height*100)+'%';
 }
-function releasePhoton(e){if(e&&photonPointer!==null&&e.pointerId!==photonPointer)return;photonPointer=null;alienFireHeld=false;photonAimX=photonAimY=0}
+function releasePhoton(e){
+ if(e&&photonPointer!==null&&e.pointerId!==photonPointer)return;
+ photonPointer=null;alienFireHeld=false;photonAimX=photonAimY=0;
+ photonThumb.style.left=photonThumb.style.top='50%';
+}
 alienFire.addEventListener('contextmenu',e=>e.preventDefault());
 alienFire.addEventListener('selectstart',e=>e.preventDefault());
-alienFire.addEventListener('pointerdown',e=>{if(movingControl===alienFire)return;e.preventDefault();photonPointer=e.pointerId;alienFire.setPointerCapture(e.pointerId);alienFireHeld=true;movePhotonAim(e);fireAlienPhoton()});
+alienFire.addEventListener('pointerdown',e=>{
+ if(movingControl===alienFire)return;
+ e.preventDefault();photonPointer=e.pointerId;alienFire.setPointerCapture(e.pointerId);
+ alienFireHeld=true;movePhotonAim(e);fireAlienPhoton();
+});
 alienFire.addEventListener('pointermove',e=>{if(e.pointerId===photonPointer)movePhotonAim(e)});
 for(const event of ['pointerup','pointercancel','lostpointercapture'])alienFire.addEventListener(event,releasePhoton);
 window.addEventListener('pointerup',e=>{if(e.pointerId===photonPointer)releasePhoton(e)});
