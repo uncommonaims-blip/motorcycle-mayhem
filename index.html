@@ -513,7 +513,7 @@ caveCockpit.style.cssText='display:none;position:fixed;left:50%;bottom:10%;trans
 const caveCockpitStyle=document.createElement('style');caveCockpitStyle.textContent='#caveCockpit .caveHandlebar{height:42px;display:flex;align-items:center;justify-content:space-between;border-top:7px solid #242a32;border-radius:55% 55% 0 0;filter:drop-shadow(0 3px 3px #0009)}#caveCockpit .caveGrip{width:52px;height:15px;background:repeating-linear-gradient(90deg,#161b21 0 6px,#434953 6px 9px);border:2px solid #737b86;border-radius:9px}#caveCockpit .caveHeadlamp{margin-top:-12px;color:#fff7bd;text-shadow:0 0 12px #fff6ad,0 0 26px #ffd56c;font-size:31px}';document.head.appendChild(caveCockpitStyle);document.body.appendChild(caveCockpit);
 function enterCave(cave){
  if(!cave)return false;
- cavePreviousPOV=firstPerson;firstPerson=true;document.getElementById('viewToggle').textContent='🎥 CHASE';caveCockpit.style.display='block';
+ cavePreviousPOV=firstPerson;firstPerson=true;document.getElementById('viewToggle').textContent='🎥 CHASE';caveCockpit.style.display='block';caveLampButton.style.display='block';caveHeadlampOn=true;caveLampButton.textContent='🔦 ON';
  caveRide={...cave,time:0,centerX:bike.position.x,floorY:bike.position.y,hitCooldown:0,descentVelocity:0,wasInGallery:false};
  cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);
  for(const spike of cave.spikes){spike.visible=true;spike.userData.broken=false}
@@ -595,7 +595,7 @@ function updateCaveRide(dt){
   caveCockpit.style.opacity=closestDanger<5?'1':'.85';
   caveCockpit.querySelector('.caveHeadlamp').style.color=closestDanger<5?'#ffad63':'#fff7bd';
   if(ride.time>10*CAVE_LENGTH_MULTIPLIER||ride.tunnel.position.z>125*CAVE_LENGTH_MULTIPLIER){
-   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null;document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'}
+   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveLampButton.style.display='none';caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null;document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'}
    popup('🏔️ CAVE EXIT!')
   }
   return;
@@ -697,12 +697,21 @@ function updateMushroomRoad(dt){
 function wheel(parent,x,z,r=.47){const o=new T.Mesh(new T.TorusGeometry(r,.16,8,14),new T.MeshLambertMaterial({color:0x151719}));o.position.set(x,r+.1,z);o.rotation.y=Math.PI/2;parent.add(o);return o}
 const bike=new T.Group();scene.add(bike);
 // Focused, forward-facing motorcycle headlamp. Negative Z is forward.
-const nightHeadlight=new T.SpotLight(0xfff0ce,0,125,Math.PI/3.8,.7,1.1);
+const nightHeadlight=new T.SpotLight(0xfff4d5,0,155,Math.PI/3.4,.9,.6);
 nightHeadlight.position.set(0,1.7,-1.3);
-nightHeadlight.target.position.set(0,.7,-35);bike.add(nightHeadlight);bike.add(nightHeadlight.target);
+nightHeadlight.target.position.set(0,.7,-28);bike.add(nightHeadlight);bike.add(nightHeadlight.target);
 // Cave illumination must be created AFTER bike exists (prior attempts failed at startup).
-const caveBikeFill=new T.PointLight(0xffe5c2,0,24,1.5);
-caveBikeFill.position.set(0,1.7,-2.5);bike.add(caveBikeFill);
+let caveHeadlampOn=true;
+const caveLampButton=document.createElement('button');
+caveLampButton.id='caveLampSwitch';
+caveLampButton.type='button';
+caveLampButton.textContent='🔦 ON';
+caveLampButton.setAttribute('aria-label','Toggle motorcycle headlight');
+caveLampButton.style.cssText='position:fixed;bottom:164px;left:calc(50% - 112px);z-index:25;padding:9px 11px;border:2px solid #ffd87a;border-radius:13px;background:#1d2a3d;color:white;font:bold 13px system-ui;display:none;touch-action:manipulation';
+document.body.appendChild(caveLampButton);
+caveLampButton.addEventListener('click',()=>{caveHeadlampOn=!caveHeadlampOn;caveLampButton.textContent=caveHeadlampOn?'🔦 ON':'🔦 OFF';nightHeadlight.intensity=caveHeadlampOn?220:0;caveBikeFill.intensity=caveHeadlampOn?18:0;});
+const caveBikeFill=new T.PointLight(0xffe5c2,0,48,1.1);
+caveBikeFill.position.set(0,1.8,-9);bike.add(caveBikeFill);
 let mushroomArmor=0,mushroomSize=1,mushroomBlink=0,mushroomInvulnerable=0;
 function absorbMushroomHit(){if(mushroomInvulnerable>0)return true;if(mushroomArmor<=0)return false;mushroomArmor=0;mushroomInvulnerable=2.2;mushroomBlink=2.2;popup("🍄 SHIELD BROKEN — NO DAMAGE!");return true}function updateMushroomSize(dt){mushroomInvulnerable=Math.max(0,mushroomInvulnerable-dt);mushroomBlink=Math.max(0,mushroomBlink-dt);bike.visible=crashTimer<=0&&(mushroomBlink<=0||Math.floor(mushroomBlink*12)%2===0);const target=mushroomArmor>0?1.35:1;mushroomSize+=(target-mushroomSize)*Math.min(1,dt*7);helmet.scale.setScalar(mushroomSize);helmet.position.y=2.14+(mushroomSize-1)*.36;for(const p of mushroomRiderParts){p.scale.setScalar(mushroomSize);p.position.y=p.userData.mushroomY+(mushroomSize-1)*.24}}cube(.68,.48,2.4,material(0xffca2c),0,1.1,0,bike);const alienWheels=[wheel(bike,0,-1.02),wheel(bike,0,1.02)];cube(.83,.9,.55,material(0x2871d5),0,1.56,.22,bike);const helmet=new T.Mesh(new T.SphereGeometry(.44,12,10),material(0x1a2027));helmet.position.set(0,2.14,.18);bike.add(helmet);const ridingPack=material(0xd22235),ridingTrim=material(0x81111d);cube(.65,.72,.32,ridingPack,0,1.59,.65,bike);cube(.58,.16,.37,ridingTrim,0,1.92,.66,bike);cube(.12,.66,.12,ridingTrim,-.29,1.58,.42,bike);cube(.12,.66,.12,ridingTrim,.29,1.58,.42,bike);
 const tailpipe=cube(.17,.16,.85,material(0x9ca9b6),.43,.72,1.23,bike);
@@ -1709,8 +1718,8 @@ sunsetPanel.material.opacity=1;
 mandalaDisc.visible=sunsetPanel.visible&&shroomTimer>0;
 mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+shroomLevel*.12);mandalaDisc.scale.setScalar(1+.17*Math.sin(dayCycle*3.3)+.045*Math.sin(dayCycle*8));mandalaDisc.material.opacity=.8+.2*Math.sin(dayCycle*4.7);
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*330;
-nightHeadlight.intensity=caveRide?190:nightAmount*95;
-caveBikeFill.intensity=caveRide?3:0;
+nightHeadlight.intensity=(caveRide&&caveHeadlampOn)?220:nightAmount*95;
+caveBikeFill.intensity=(caveRide&&caveHeadlampOn)?18:0;
 headlight.material.color.setHex(caveRide||nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
 document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);if(!caveRide){updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);}updateCaveRide(dt);if(!caveRide){updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);}
