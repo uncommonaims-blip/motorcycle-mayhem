@@ -251,7 +251,7 @@ const sceneryParts={mountains:[],trees:[],grass:[]};
 const mountainYetis=[],mountainCaves=[],yetiMushrooms=[],yetiProjectiles=[];let caveRide=null,caveCooldown=0,yetiHitCooldown=0,mountainCrash=false;
 // Temporary cave-first testing switch; set false to restore normal highway starts.
 const CAVE_TEST_START=true;
-const CAVE_LENGTH_MULTIPLIER=3;
+const CAVE_LENGTH_MULTIPLIER=6;
 function buildMountainCave(mountain,radius,height,seed){
  const cave=new T.Group(),floor=-height*.43+1.8,front=radius*.79;
  cave.position.set(0,floor,front);mountain.add(cave);
