@@ -269,22 +269,32 @@ function buildMountainCave(mountain,radius,height,seed){
  // Two physically separate tunnel halves. The grand gallery is not a widened tube.
  const totalLength=115*CAVE_LENGTH_MULTIPLIER;
  const galleryZ=-totalLength*.5,galleryStart=galleryZ+46,galleryEnd=galleryZ-46,caveDrop=12;
+ // Small reusable wall sections let the renderer skip distant geometry without popping whole tunnels.
+ const wallRadiusAt=z=>{
+  const t=(-z)/totalLength;
+  const chamber=Math.pow(Math.max(0,Math.sin(t*Math.PI*5.5)),4);
+  const pinch=Math.pow(Math.max(0,Math.sin(t*Math.PI*7.2+1.1)),7);
+  return 5+chamber*5.2-pinch*1.7-.22;
+ };
+ const wallCenterAt=z=>Math.sin((-z)/totalLength*11)*1.1;
  function tunnelHalf(zFront,zBack,lower){
-  const length=zFront-zBack,geometry=new T.CylinderGeometry(5,5,length,16,44,true);
-  const v=geometry.getAttribute('position');
-  for(let i=0;i<v.count;i++){
-   const y=v.getY(i),theta=Math.atan2(v.getZ(i),v.getX(i));
-   const z=(zFront+zBack)*.5-y,t=(-z)/totalLength;
-   const chamber=Math.pow(Math.max(0,Math.sin(t*Math.PI*5.5)),4);
-   const pinch=Math.pow(Math.max(0,Math.sin(t*Math.PI*7.2+1.1)),7);
-   const radius=5+chamber*5.2-pinch*1.7+.2*Math.sin(theta*7+t*43);
-   v.setX(i,Math.cos(theta)*radius+Math.sin(t*11)*1.1);
-   v.setZ(i,Math.sin(theta)*radius);
+  const sectionLength=34;
+  for(let end=zFront;end>zBack;end-=sectionLength){
+   const back=Math.max(zBack,end-sectionLength),length=end-back;
+   const geometry=new T.CylinderGeometry(5,5,length+.2,12,8,true);
+   const v=geometry.getAttribute('position');
+   for(let i=0;i<v.count;i++){
+    const y=v.getY(i),theta=Math.atan2(v.getZ(i),v.getX(i));
+    const z=(end+back)*.5-y,t=(-z)/totalLength;
+    const radius=wallRadiusAt(z)+.22+.16*Math.sin(theta*7+t*43);
+    v.setX(i,Math.cos(theta)*radius+wallCenterAt(z));
+    v.setZ(i,Math.sin(theta)*radius);
+   }
+   v.needsUpdate=true;geometry.computeVertexNormals();
+   const mesh=new T.Mesh(geometry,tunnelMat);
+   mesh.rotation.x=Math.PI/2;mesh.position.set(0,lower?-caveDrop:0,(end+back)*.5);
+   tunnel.add(mesh);
   }
-  v.needsUpdate=true;geometry.computeVertexNormals();
-  const mesh=new T.Mesh(geometry,tunnelMat);
-  mesh.rotation.x=Math.PI/2;mesh.position.set(0,lower?-caveDrop:0,(zFront+zBack)*.5);
-  tunnel.add(mesh);
  }
  tunnelHalf(10,galleryStart,false);
  tunnelHalf(galleryEnd,10-totalLength,true);
@@ -300,9 +310,9 @@ function buildMountainCave(mountain,radius,height,seed){
  // Lighting is owned by the whole cave session, never by tunnel segment transitions.
  // Distributed low-cost fill lights avoid unlit stretches in the six-times-long cave.
  const guideLights=[];
- for(let j=0;j<15;j++){
-  const z=5-j*(totalLength/14);
-  const lamp=new T.PointLight(j%3===0?0xffb779:0xaccaff,2.7,88,1.25);
+ for(let j=0;j<7;j++){
+  const z=5-j*(totalLength/6);
+  const lamp=new T.PointLight(j%3===0?0xffb779:0xaccaff,2.2,105,1.25);
   lamp.position.set(j%2?2.8:-2.8,(z<galleryEnd?-caveDrop:0)+1.8,z);
   tunnel.add(lamp);guideLights.push(lamp);
  }
@@ -405,7 +415,7 @@ function buildMountainCave(mountain,radius,height,seed){
   const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?0:Math.PI;spike.position.set(x,k%2?-4.4+floorAt(z)+length*.5:4.5+Math.max(0,-floorAt(z))*.2-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
  // Dark end wall prevents the open world showing through the far tunnel mouth.
  const back=new T.Mesh(new T.CircleGeometry(5,12),new T.MeshBasicMaterial({color:0x10131d,side:T.DoubleSide}));back.position.z=12-115*CAVE_LENGTH_MULTIPLIER;tunnel.add(back);
- mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,lavaCenter,lavaWidth,bridgeLocations,floorAt,galleryZ,caveDrop,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
+ mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,lavaCenter,lavaWidth,bridgeLocations,floorAt,galleryZ,caveDrop,wallRadiusAt,wallCenterAt,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
  return cave;
 }
 function makeYeti(mountain,seed){
@@ -479,7 +489,7 @@ function updateMountainYetis(dt){
  }
 }
 const caveFragments=[];
-const caveVisibilityDistance=105;
+const caveVisibilityDistance=125;
 function breakCaveSpike(spike,ride){
  spike.userData.broken=true;spike.visible=false;
  const center=new T.Vector3();spike.getWorldPosition(center);
@@ -520,14 +530,28 @@ function updateCaveRide(dt){
   ride.tunnel.position.z+=Math.max(13,speed*.19)*dt;
   // Cull distant cave pieces at a throttled cadence to reduce GPU draw calls.
   ride.visibilityClock=(ride.visibilityClock||0)-dt;
-  if(ride.visibilityClock<=0){ride.visibilityClock=.18;
+  if(ride.visibilityClock<=0){ride.visibilityClock=.3;
    const riderLocalZ=bike.position.z-ride.tunnel.position.z;
    for(const part of ride.renderPieces||[]){
     part.object.visible=part.always||Math.abs(part.z-riderLocalZ)<caveVisibilityDistance;
    }
   }
   // Ride inside a full tunnel, with obstacles approaching rather than passing through scenery.
-  bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
+  // Cave wall contact: keep the bike and POV inside the solid rock envelope.
+  const wallZ=bike.position.z-ride.tunnel.position.z;
+  const galleryOpen=Math.abs(wallZ-ride.galleryZ)<46;
+  const wallCenter=ride.centerX+ride.wallCenterAt(wallZ);
+  const wallLimit=galleryOpen?15:Math.max(3.1,ride.wallRadiusAt(wallZ)-1.5);
+  const wallOffset=bike.position.x-wallCenter;
+  const wallContact=Math.max(0,Math.abs(wallOffset)-wallLimit);
+  if(wallContact>0){
+   bike.position.x=wallCenter+Math.sign(wallOffset)*wallLimit;
+   ride.wallBank=T.MathUtils.damp(ride.wallBank,Math.sign(wallOffset)*.22,9,dt);
+  }else{
+   const nearWall=Math.max(0,1-(wallLimit-Math.abs(wallOffset))/.85);
+   ride.wallBank=T.MathUtils.damp(ride.wallBank,Math.sign(wallOffset)*nearWall*.18,5,dt);
+  }
+  bike.rotation.z+=ride.wallBank*.18;
   const localFloorZ=bike.position.z-ride.tunnel.position.z;
   const lowerFloor=ride.floorY+ride.floorAt(localFloorZ);
   // At the gallery precipice the rider becomes airborne and falls under gravity.
