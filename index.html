@@ -266,42 +266,57 @@ function buildMountainCave(mountain,radius,height,seed){
  }
  const tunnel=new T.Group();tunnel.visible=false;scene.add(tunnel);
  const tunnelMat=new T.MeshLambertMaterial({color:0x647184,side:T.BackSide,flatShading:true});
- const shellGeometry=new T.CylinderGeometry(5,5,115*CAVE_LENGTH_MULTIPLIER,16,72,true);
- const vertices=shellGeometry.getAttribute('position');
- for(let i=0;i<vertices.count;i++){
-  const y=vertices.getY(i),theta=Math.atan2(vertices.getZ(i),vertices.getX(i));
-  const t=(y/(115*CAVE_LENGTH_MULTIPLIER)+.5);
-  const chamber=Math.pow(Math.max(0,Math.sin(t*Math.PI*5.5)),4);
-  const pinch=Math.pow(Math.max(0,Math.sin(t*Math.PI*7.2+1.1)),7);
-  const grand=Math.exp(-Math.pow((t-.5)/.085,4));
-  const radius=5+chamber*5.2-pinch*1.7+grand*17+.2*Math.sin(theta*7+t*43);
-  vertices.setX(i,Math.cos(theta)*radius+Math.sin(t*11)*1.1);
-  vertices.setZ(i,Math.sin(theta)*radius);
+ // Two physically separate tunnel halves. The grand gallery is not a widened tube.
+ const totalLength=115*CAVE_LENGTH_MULTIPLIER;
+ const galleryZ=-totalLength*.5,galleryStart=galleryZ+46,galleryEnd=galleryZ-46,caveDrop=12;
+ function tunnelHalf(zFront,zBack,lower){
+  const length=zFront-zBack,geometry=new T.CylinderGeometry(5,5,length,16,44,true);
+  const v=geometry.getAttribute('position');
+  for(let i=0;i<v.count;i++){
+   const y=v.getY(i),theta=Math.atan2(v.getZ(i),v.getX(i));
+   const z=(zFront+zBack)*.5-y,t=(-z)/totalLength;
+   const chamber=Math.pow(Math.max(0,Math.sin(t*Math.PI*5.5)),4);
+   const pinch=Math.pow(Math.max(0,Math.sin(t*Math.PI*7.2+1.1)),7);
+   const radius=5+chamber*5.2-pinch*1.7+.2*Math.sin(theta*7+t*43);
+   v.setX(i,Math.cos(theta)*radius+Math.sin(t*11)*1.1);
+   v.setZ(i,Math.sin(theta)*radius);
+  }
+  v.needsUpdate=true;geometry.computeVertexNormals();
+  const mesh=new T.Mesh(geometry,tunnelMat);
+  mesh.rotation.x=Math.PI/2;mesh.position.set(0,lower?-caveDrop:0,(zFront+zBack)*.5);
+  tunnel.add(mesh);
  }
- vertices.needsUpdate=true;shellGeometry.computeVertexNormals();
- const shell=new T.Mesh(shellGeometry,tunnelMat);shell.rotation.x=Math.PI/2;shell.position.z=10-55*CAVE_LENGTH_MULTIPLIER;tunnel.add(shell);
+ tunnelHalf(10,galleryStart,false);
+ tunnelHalf(galleryEnd,10-totalLength,true);
+ // Vast independent enclosed cavern connecting the upper and lower tunnel mouths.
+ const chamberMat=new T.MeshLambertMaterial({color:0x647184,side:T.BackSide,flatShading:true});
+ const chamber=new T.Mesh(new T.SphereGeometry(1,32,18),chamberMat);
+ chamber.scale.set(27,24,63);
+ chamber.position.set(0,-caveDrop*.38,galleryZ);
+ tunnel.add(chamber);
  // Gentle tunnel fill light follows the cave itself, preserving depth and contrast.
  const caveLight=new T.PointLight(0xffe4b5,2.5,85,1.3);caveLight.position.set(0,1,-22);tunnel.add(caveLight);
  const caveBackLight=new T.PointLight(0x93b9e8,1.7,65,1.4);caveBackLight.position.set(0,2,-68);tunnel.add(caveBackLight);
  // Mid-cave grand gallery: the riding shelf drops to a lower cavern floor.
- const galleryZ=-115*CAVE_LENGTH_MULTIPLIER*.5,galleryStart=galleryZ+42,galleryEnd=galleryZ-42;
- const caveDrop=8;
+ // Upper shelf ends at the precipice; lower landing begins across the gallery.
  const floorAt=z=>z>galleryStart?0:z<galleryEnd?-caveDrop:-caveDrop*(galleryStart-z)/(galleryStart-galleryEnd);
  const floorMat=new T.MeshLambertMaterial({color:0x92919b,flatShading:true});
- for(let j=0;j<90;j++){
-  const z0=10-j*115*CAVE_LENGTH_MULTIPLIER/90,z1=10-(j+1)*115*CAVE_LENGTH_MULTIPLIER/90;
-  const mid=(z0+z1)*.5;
-  const segment=new T.Mesh(new T.BoxGeometry(10,.3,Math.abs(z0-z1)+.15),floorMat);
-  segment.position.set(0,-4.6+floorAt(mid),mid);
-  segment.rotation.x=Math.atan2(floorAt(z0)-floorAt(z1),z0-z1);
-  tunnel.add(segment);
+ for(let half=0;half<2;half++){
+  const front=half?galleryEnd:10,back=half?10-totalLength:galleryStart;
+  const length=front-back;
+  const floorMesh=new T.Mesh(new T.BoxGeometry(10,.3,length),floorMat);
+  floorMesh.position.set(0,-4.6+(half?-caveDrop:0),(front+back)*.5);
+  tunnel.add(floorMesh);
  }
+ // Lower gallery landing and an exposed drop between the two tunnel halves.
+ const landing=new T.Mesh(new T.BoxGeometry(22,.5,60),floorMat);
+ landing.position.set(0,-4.6-caveDrop,galleryZ-18);tunnel.add(landing);
  // Lava pours from the upper shelf into the lower gallery.
  const waterfallMat=new T.MeshBasicMaterial({color:0xff6410,side:T.DoubleSide});
- const waterfall=new T.Mesh(new T.PlaneGeometry(4.5,caveDrop+2,8,12),waterfallMat);
- waterfall.position.set(3.2,-4.6-caveDrop*.5,galleryZ+10);waterfall.rotation.y=.22;tunnel.add(waterfall);
+ const waterfall=new T.Mesh(new T.PlaneGeometry(6,caveDrop+3,8,12),waterfallMat);
+ waterfall.position.set(3.2,-4.6-caveDrop*.5,galleryStart-5);waterfall.rotation.y=.22;tunnel.add(waterfall);
  const fallsGlow=new T.PointLight(0xff6b17,5,60,1.5);
- fallsGlow.position.set(2,-5,galleryZ+9);tunnel.add(fallsGlow);
+ fallsGlow.position.set(2,-7,galleryStart-5);tunnel.add(fallsGlow);
  const galleryGlow=new T.PointLight(0xffb054,3.2,90,1.4);
  galleryGlow.position.set(-4,5,galleryZ-18);tunnel.add(galleryGlow);
  // Glowing lava streams meander along the cave floor, away from the center riding line.
@@ -491,12 +506,14 @@ function updateCaveRide(dt){
   bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
   const localFloorZ=bike.position.z-ride.tunnel.position.z;
   const lowerFloor=ride.floorY+ride.floorAt(localFloorZ);
-  bike.position.y=T.MathUtils.damp(bike.position.y,lowerFloor,localFloorZ<ride.galleryZ+42&&localFloorZ>ride.galleryZ-42?2.3:6,dt);
+  // Airborne descent into the lower gallery, then settle onto the landing.
+  const inGallery=localFloorZ<ride.galleryZ+46&&localFloorZ>ride.galleryZ-46;
+  bike.position.y=T.MathUtils.damp(bike.position.y,lowerFloor,inGallery?1.6:7,dt);
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
   ride.lavaCooldown=Math.max(0,(ride.lavaCooldown||0)-dt);
   const caveZ=bike.position.z-ride.tunnel.position.z;
   const caveX=bike.position.x-ride.tunnel.position.x;
-  const overLava=Math.abs(caveX-ride.lavaCenter(caveZ))<ride.lavaWidth(caveZ)+.28;
+  const overLava=Math.abs(caveX-ride.lavaCenter(caveZ))<ride.lavaWidth(caveZ)+.28&&Math.abs(caveZ-ride.galleryZ)>55;
   const onBridge=ride.bridgeLocations.some(bridge=>{if(Math.abs(caveZ-bridge.z)>bridge.halfLength)return false;const cx=bridge.x+(ride.lavaCenter(caveZ)-bridge.x)*.85;return Math.abs(caveX-cx)<bridge.halfWidth-.12;});
   if(overLava&&!onBridge&&ride.lavaCooldown<=0){
    health=Math.max(1,health-4);ride.lavaCooldown=.65;
