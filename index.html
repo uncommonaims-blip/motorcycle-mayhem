@@ -642,20 +642,25 @@ presetControls.querySelector('button').onclick=()=>{const name=presetControls.qu
 
 // Align only user-positioned controls, leaving untouched defaults exactly as designed.
 presetControls.querySelector('#mayhemAlignControls').onclick=()=>{
- const gap=10,step=12,placed=[];
+ const gap=10,step=8,placed=[];
  const controls=movableControls().filter(b=>controlPositions[controlIdentity(b)]);
  controls.sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top);
  for(const b of controls){
   const rect=b.getBoundingClientRect(),w=rect.width,h=rect.height;
-  let x=Math.max(0,Math.min(innerWidth-w,Math.round(rect.left/step)*step));
-  let y=Math.max(0,Math.min(innerHeight-h,Math.round(rect.top/step)*step));
-  let attempts=0;
-  while(placed.some(p=>x<p.x+p.w+gap&&x+w+gap>p.x&&y<p.y+p.h+gap&&y+h+gap>p.y)&&attempts++<40){
-   y+=step;if(y+h>innerHeight){y=0;x=Math.min(innerWidth-w,x+step)}
+  const startX=Math.max(0,Math.min(innerWidth-w,Math.round(rect.left/step)*step));
+  const startY=Math.max(0,Math.min(innerHeight-h,Math.round(rect.top/step)*step));
+  let best=null;
+  for(let y=0;y<=innerHeight-h;y+=step)for(let x=0;x<=innerWidth-w;x+=step){
+   if(placed.some(p=>x<p.x+p.w+gap&&x+w+gap>p.x&&y<p.y+p.h+gap&&y+h+gap>p.y))continue;
+   const cost=(x-startX)**2+(y-startY)**2;
+   if(!best||cost<best.cost)best={x,y,cost};
   }
-  positionControl(b,x,y);controlPositions[controlIdentity(b)]={x:x/innerWidth,y:y/innerHeight};placed.push({x,y,w,h});
+  if(!best){popup('⚠️ NOT ENOUGH ROOM TO ALIGN EVERY CONTROL');return}
+  positionControl(b,best.x,best.y);
+  controlPositions[controlIdentity(b)]={x:best.x/innerWidth,y:best.y/innerHeight};
+  placed.push({x:best.x,y:best.y,w,h});
  }
- saveControlPositions();popup(controls.length?'📐 CONTROLS ALIGNED — '+controls.length+' MOVED':'📐 DEFAULT CONTROLS ALREADY ALIGNED');
+ saveControlPositions();popup(controls.length?'📐 CONTROLS ALIGNED — NO OVERLAP':'📐 DEFAULT CONTROLS ALREADY ALIGNED');
 };
 const controlIdentity=b=>b.id||b.getAttribute('data-key')||b.getAttribute('aria-label')||b.textContent.trim();
 function saveControlPositions(){try{localStorage.setItem(controlPositionsKey,JSON.stringify(controlPositions))}catch{}}
