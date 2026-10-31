@@ -1034,7 +1034,7 @@ function updateCountry(dt){
 /* Alien encounter: periodic five-second tractor beams, object abductions and unlockable hover bike. */
 let alienHoverGround=0;let ufoClock=0,ufoNext=0,ufo=null,alienUnlocked=false,alienHover=false,alienFireCooldown=0,alienAbduction=0;
 const alienControls=document.getElementById('alienControls'),alienTransform=document.getElementById('alienTransform'),alienFire=document.getElementById('alienFire');
-let alienReturnBounce=0;let alienFlightTime=0,alienAltitude=5,alienClimb=false,alienPhotonUnlocked=false,alienStickX=0,alienStickY=0,alienFireHeld=false;const alienBolts=[],alienFloating=[];
+let alienReturnBounce=0;let alienFlightTime=0,alienAltitude=5,alienClimb=false,alienPhotonUnlocked=false,alienStickX=0,alienStickY=0,photonAimX=0,photonAimY=0,alienFireHeld=false;const alienBolts=[],alienFloating=[];
 const alienMat=(color,opacity=1)=>new T.MeshBasicMaterial({color,transparent:opacity<1,opacity,side:T.DoubleSide,depthWrite:opacity===1});
 function spawnUfo(){
  const g=new T.Group(),hull=alienMat(0x96aab9),glow=alienMat(0x4df9e9),glass=alienMat(0x7452dd,.85);
@@ -1055,9 +1055,22 @@ function fireAlienPhoton(){
  if(!alienPhotonUnlocked||!playing||paused||crashTimer>0||alienAbduction>0||alienFireCooldown>0)return;
  alienFireCooldown=.12;
  const bolt=new T.Mesh(new T.SphereGeometry(.38,8,6),new T.MeshBasicMaterial({color:0x79fff6}));
- bolt.position.set(bike.position.x,bike.position.y+1.8,bike.position.z-3);scene.add(bolt);alienBolts.push({mesh:bolt,life:1.5,previous:bolt.position.clone()}); 
+ bolt.position.set(bike.position.x,bike.position.y+1.8,bike.position.z-3);scene.add(bolt);alienBolts.push({mesh:bolt,life:1.5,previous:bolt.position.clone(),velocity:new T.Vector3(photonAimX*85,photonAimY*85,-120).normalize().multiplyScalar(120)}); 
 }
-alienFire.addEventListener('contextmenu',e=>e.preventDefault());alienFire.addEventListener('selectstart',e=>e.preventDefault());alienFire.addEventListener('pointerdown',e=>{if(movingControl===alienFire)return;e.preventDefault();alienFireHeld=true;fireAlienPhoton()});for(const event of ['pointerup','pointercancel','lostpointercapture'])alienFire.addEventListener(event,()=>alienFireHeld=false);window.addEventListener('pointerup',()=>alienFireHeld=false);
+// The photon fire button doubles as an aim joystick: drag while holding to steer shots.
+let photonPointer=null;
+function movePhotonAim(e){
+ const rect=alienFire.getBoundingClientRect(),radius=Math.max(25,Math.min(rect.width,rect.height)*.5);
+ photonAimX=T.MathUtils.clamp((e.clientX-rect.left-rect.width/2)/radius,-1,1);
+ photonAimY=T.MathUtils.clamp((rect.top+rect.height/2-e.clientY)/radius,-1,1);
+}
+function releasePhoton(e){if(e&&photonPointer!==null&&e.pointerId!==photonPointer)return;photonPointer=null;alienFireHeld=false;photonAimX=photonAimY=0}
+alienFire.addEventListener('contextmenu',e=>e.preventDefault());
+alienFire.addEventListener('selectstart',e=>e.preventDefault());
+alienFire.addEventListener('pointerdown',e=>{if(movingControl===alienFire)return;e.preventDefault();photonPointer=e.pointerId;alienFire.setPointerCapture(e.pointerId);alienFireHeld=true;movePhotonAim(e);fireAlienPhoton()});
+alienFire.addEventListener('pointermove',e=>{if(e.pointerId===photonPointer)movePhotonAim(e)});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])alienFire.addEventListener(event,releasePhoton);
+window.addEventListener('pointerup',e=>{if(e.pointerId===photonPointer)releasePhoton(e)});
 addEventListener('keydown',e=>{if(e.repeat)return;if(e.key.toLowerCase()==='t')alienTransformBike();if(e.key.toLowerCase()==='f')fireAlienPhoton();if(e.key.toLowerCase()==='u')alienClimb=true});
 addEventListener('keyup',e=>{if(e.key.toLowerCase()==='u')alienClimb=false});function alienRelease(subject){
  if(subject.type==='bike'){alienAbduction=0;alienUnlocked=true;alienHover=false;alienControls.classList.add('unlocked');alienTransform.style.display='block';alienTransform.textContent='🛸 TRANSFORM';health=100;fuel=100;alienFlightTime=90;alienAltitude=5;alienPhotonUnlocked=true;alienReturnBounce=1.1;bike.position.set(T.MathUtils.clamp(subject.returnX??0,-9,9),0,8);bike.position.y=mountainHeightAt(bike.position.x,bike.position.z)+11;bike.rotation.set(0,0,0);bike.visible=true;rider.visible=false;crashTimer=0;popup('👽 ALIEN UPGRADE! TAP TRANSFORM TO HOVER & FIRE PHOTONS!');return}
@@ -1195,7 +1208,7 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
  }
  if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,85);bike.position.x+=alienStickX*dt*21}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){const ground=mountainHeightAt(bike.position.x,bike.position.z);alienHoverGround=T.MathUtils.damp(alienHoverGround,ground,2,dt);bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,alienHoverGround+alienAltitude),3,dt);bike.rotation.z=Math.sin(ufoClock*3)*.04}
  for(const w of alienWheels)w.rotation.y=T.MathUtils.damp(w.rotation.y,alienHover?0:Math.PI/2,8,dt);alienUp.style.display=alienHover?'none':'none';flightStick.style.display=alienHover?'block':'none';
- for(let i=alienBolts.length-1;i>=0;i--){const b=alienBolts[i];b.life-=dt;b.previous.copy(b.mesh.position);b.mesh.position.z-=dt*120;b.mesh.scale.setScalar(1+Math.sin(b.life*22)*.2);
+ for(let i=alienBolts.length-1;i>=0;i--){const b=alienBolts[i];b.life-=dt;b.previous.copy(b.mesh.position);b.mesh.position.addScaledVector(b.velocity,dt);b.mesh.scale.setScalar(1+Math.sin(b.life*22)*.2);
   let hit=false;for(const jet of [...fighterJets]){const start=b.previous,end=b.mesh.position,travel=end.clone().sub(start),lengthSq=travel.lengthSq(),t=lengthSq?T.MathUtils.clamp(jet.g.position.clone().sub(start).dot(travel)/lengthSq,0,1):0,closest=start.clone().addScaledVector(travel,t);if(closest.distanceTo(jet.g.position)<4.2){jetExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);photonExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);scene.remove(jet.g);fighterJets.splice(fighterJets.indexOf(jet),1);award(3000,'⚡ PHOTON JET DOWN!');popup('💥 ENEMY JET DISINTEGRATED!');hit=true;break}}if(!hit)for(const car of cars){if(car.crashed||car.alienTaken)continue;if(Math.abs(car.g.position.x-b.mesh.position.x)<car.w/2+1&&Math.abs(car.g.position.z-b.mesh.position.z)<car.l/2+2){car.crashed=true;car.life=.15;car.blastVy=0;car.blastVz=0;car.spin=0;photonExplosion(car.g.position.x,car.g.position.y+1.5,car.g.position.z);car.g.visible=false;award(car.oncoming?1400:900,'💥 PHOTON EXPLOSION!');hit=true;break}}
   if(!hit&&ufo){const a=b.previous,c=b.mesh.position,delta=c.clone().sub(a),length=delta.lengthSq(),t=length?T.MathUtils.clamp(ufo.g.position.clone().sub(a).dot(delta)/length,0,1):0,nearest=a.clone().addScaledVector(delta,t);if(nearest.distanceTo(ufo.g.position)<7.5){ufo.damage=(ufo.damage||0)+1;photonExplosion(nearest.x,nearest.y,nearest.z);ufo.g.position.x+=(Math.random()-.5)*7;popup('⚡ UFO HIT — SYSTEMS SPARKING!');if(ufo.damage>=4){photonExplosion(ufo.g.position.x,ufo.g.position.y,ufo.g.position.z);ufo.beamEnd=0;ufo.targetX+=(Math.random()-.5)*90;popup('🛸 UFO DISABLED — VEERING OFF!')}hit=true}}
   if(!hit)for(const o of sceneryParts.trees){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<3&&Math.abs(center.x-b.mesh.position.x)<3&&Math.abs(center.y-b.mesh.position.y)<12){photonExplosion(center.x,Math.max(1,b.mesh.position.y),center.z);o.mesh.position.z=-500;o.mesh.visible=false;hit=true;break}}
