@@ -401,18 +401,25 @@ function updateCaveRide(dt){
   bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
   bike.position.y=T.MathUtils.damp(bike.position.y,ride.floorY,6,dt);
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
+  let closestDanger=Infinity;
   for(const spike of ride.spikes){
    if(spike.userData.broken||spike.position.y>0)continue;
    const world=new T.Vector3();spike.getWorldPosition(world);
    const distance=Math.abs(world.z-bike.position.z);
-   const height=spike.userData.length;
-   const hanging=spike.position.y>0;
-   const dangerousY=hanging?world.y-height*.4:world.y+height*.4;
-   if(distance<1.5&&Math.abs(world.x-bike.position.x)<.8&&Math.abs(dangerousY-bike.position.y)<3.1){
+   // Use the narrow physical base of each floor cone, not an oversized 3D hit box.
+   // A near miss at the side should be safe, especially in first-person view.
+   const lateral=Math.abs(world.x-bike.position.x);
+   if(world.z<bike.position.z&&distance<9&&lateral<.65)closestDanger=Math.min(closestDanger,distance);
+   const coneBaseY=world.y-spike.userData.length*.5;
+   const wheelY=bike.position.y+.5;
+   const baseReach=wheelY>=coneBaseY-.3&&wheelY<=coneBaseY+spike.userData.length;
+   if(distance<.82&&lateral<.49&&baseReach){
     breakCaveSpike(spike,ride);
     if(ride.hitCooldown<=0){health=Math.max(1,health-6);ride.hitCooldown=.5;bike.position.x+=Math.sign(bike.position.x-world.x||1)*.45;popup('🪨 CAVE SPIKE! -6 HP')}
    }
   }
+  caveCockpit.style.opacity=closestDanger<5?'1':'.85';
+  caveCockpit.querySelector('.caveHeadlamp').style.color=closestDanger<5?'#ffad63':'#fff7bd';
   if(ride.time>10*CAVE_LENGTH_MULTIPLIER||ride.tunnel.position.z>125*CAVE_LENGTH_MULTIPLIER){
    ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null;document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'}
    popup('🏔️ CAVE EXIT!')
