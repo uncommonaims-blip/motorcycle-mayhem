@@ -265,10 +265,12 @@ function buildMountainCave(mountain,radius,height,seed){
  const tunnelMat=new T.MeshLambertMaterial({color:0x343a48,side:T.BackSide,flatShading:true});
  const shell=new T.Mesh(new T.CylinderGeometry(5,5,115,12,12,true),tunnelMat);shell.rotation.x=Math.PI/2;shell.position.z=-45;tunnel.add(shell);
  const floorMesh=new T.Mesh(new T.BoxGeometry(10,.3,115),new T.MeshLambertMaterial({color:0x66616a}));floorMesh.position.set(0,-4.6,-45);tunnel.add(floorMesh);
- const spikeMat=new T.MeshLambertMaterial({color:0x8d8c96,flatShading:true});
+ const spikeMat=new T.MeshLambertMaterial({color:0x8d8c96,flatShading:true});const caveSpikes=[];
  for(let k=0;k<32;k++){const z=-5-k*3.2,x=(k%5-2)*1.7,length=.5+scenerySeed(seed*37+k)*1.9;
-  const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?Math.PI:0;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);tunnel.add(spike)}
- mountainCaves.push({mountain,cave,tunnel,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
+  const spike=new T.Mesh(new T.ConeGeometry(.35,length,6),spikeMat);spike.rotation.z=k%2?Math.PI:0;spike.position.set(x,k%2?-4.4+length*.5:4.5-length*.5,z);spike.userData.caveSpike=true;spike.userData.broken=false;spike.userData.length=length;caveSpikes.push(spike);tunnel.add(spike)}
+ // Dark end wall prevents the open world showing through the far tunnel mouth.
+ const back=new T.Mesh(new T.CircleGeometry(5,12),new T.MeshBasicMaterial({color:0x10131d,side:T.DoubleSide}));back.position.z=-102.5;tunnel.add(back);
+ mountainCaves.push({mountain,cave,tunnel,spikes:caveSpikes,radius,entryX:mountain.position.x,entryZ:mountain.position.z+front,seed});
  return cave;
 }
 function makeYeti(mountain,seed){
@@ -341,12 +343,61 @@ function updateMountainYetis(dt){
   if(dist>350){y.mode='lurk';y.attackStage=0;y.cooldown=3;y.g.position.set(y.homeX,0,y.homeZ)}
  }
 }
+const caveFragments=[];
+function breakCaveSpike(spike,ride){
+ spike.userData.broken=true;spike.visible=false;
+ const center=new T.Vector3();spike.getWorldPosition(center);
+ const mat=new T.MeshLambertMaterial({color:0x93949c,flatShading:true});
+ for(let j=0;j<7;j++){
+  const shard=new T.Mesh(new T.TetrahedronGeometry(.18+Math.random()*.28),mat);
+  shard.position.copy(center).add(new T.Vector3((Math.random()-.5)*.8,(Math.random()-.5)*.8,(Math.random()-.5)*.8));scene.add(shard);
+  caveFragments.push({mesh:shard,velocity:new T.Vector3((Math.random()-.5)*9,Math.random()*7,-8-Math.random()*10),life:.7+Math.random()*.4});
+ }
+}
+function updateCaveFragments(dt){
+ for(let i=caveFragments.length-1;i>=0;i--){
+  const f=caveFragments[i];f.life-=dt;f.velocity.y-=16*dt;f.mesh.position.addScaledVector(f.velocity,dt);
+  f.mesh.rotation.x+=dt*7;f.mesh.rotation.z+=dt*5;
+  if(f.life<=0){scene.remove(f.mesh);f.mesh.geometry.dispose();caveFragments.splice(i,1)}
+ }
+}
 function updateCaveRide(dt){
- caveCooldown=Math.max(0,caveCooldown-dt);
- if(caveRide){const ride=caveRide;ride.time+=dt;ride.tunnel.position.z+=speed*.19*dt;bike.position.y=Math.max(0,bike.position.y);if(ride.time>9||ride.tunnel.position.z>125){ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;popup('🏔️ CAVE EXIT!')}return}
+ caveCooldown=Math.max(0,caveCooldown-dt);updateCaveFragments(dt);
+ if(caveRide){
+  const ride=caveRide;ride.time+=dt;
+  ride.tunnel.position.z+=Math.max(13,speed*.19)*dt;
+  // Ride inside a full tunnel, with obstacles approaching rather than passing through scenery.
+  bike.position.x=T.MathUtils.clamp(bike.position.x,ride.centerX-4.35,ride.centerX+4.35);
+  bike.position.y=T.MathUtils.damp(bike.position.y,ride.floorY,6,dt);
+  ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
+  for(const spike of ride.spikes){
+   if(spike.userData.broken)continue;
+   const world=new T.Vector3();spike.getWorldPosition(world);
+   const distance=Math.abs(world.z-bike.position.z);
+   const height=spike.userData.length;
+   const hanging=spike.position.y>0;
+   const dangerousY=hanging?world.y-height*.4:world.y+height*.4;
+   if(distance<1.5&&Math.abs(world.x-bike.position.x)<.8&&Math.abs(dangerousY-bike.position.y)<3.1){
+    breakCaveSpike(spike,ride);
+    if(ride.hitCooldown<=0){health=Math.max(1,health-6);ride.hitCooldown=.5;bike.position.x+=Math.sign(bike.position.x-world.x||1)*.45;popup('🪨 CAVE SPIKE! -6 HP')}
+   }
+  }
+  if(ride.time>10||ride.tunnel.position.z>125){
+   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveCooldown=8;
+   popup('🏔️ CAVE EXIT!')
+  }
+  return;
+ }
  if(!playing||paused||caveCooldown>0||airTime>0)return;
- for(const cave of mountainCaves){const entryX=cave.mountain.position.x,entryZ=cave.mountain.position.z+cave.radius*.79;
-  if(Math.abs(bike.position.x-entryX)<3.6&&Math.abs(bike.position.z-entryZ)<5){caveRide={...cave,time:0};cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);cave.tunnel.visible=true;cave.mountain.visible=false;popup('🦇 ENTERING MOUNTAIN CAVE!');break}
+ for(const cave of mountainCaves){
+  const entryX=cave.mountain.position.x,entryZ=cave.mountain.position.z+cave.radius*.79;
+  if(Math.abs(bike.position.x-entryX)<3.6&&Math.abs(bike.position.z-entryZ)<5){
+   caveRide={...cave,time:0,centerX:bike.position.x,floorY:bike.position.y,hitCooldown:0};
+   cave.tunnel.position.set(bike.position.x,bike.position.y+4.5,bike.position.z-5);
+   for(const spike of cave.spikes){spike.visible=true;spike.userData.broken=false}
+   cave.tunnel.visible=true;cave.mountain.visible=false;
+   popup('🦇 ENTERING MOUNTAIN CAVE!');break
+  }
  }
 }
 /* Low-poly jagged ridge geometry. The same radial profile drives rideable collision heights. */
@@ -1445,7 +1496,18 @@ mandalaDisc.position.x=sunsetPanel.position.x;mandalaDisc.rotation.z+=dt*(.18+sh
 sunsetPanel.position.y=47-dusk*37;mandalaDisc.position.y=sunsetPanel.position.y-(86/512)*330;
 nightHeadlight.intensity=nightAmount*95;headlight.material.color.setHex(nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
-document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);updateCaveRide(dt);updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);updateCaveRide(dt);updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);
+if(caveRide){
+ // Isolate cave geometry for this render only; restore world objects afterward.
+ const keep=new Set([caveRide.tunnel,bike,...caveFragments.map(f=>f.mesh)]);
+ const hidden=[];
+ for(const obj of scene.children){if(obj.visible&&!keep.has(obj)&&obj!==scene.background){obj.visible=false;hidden.push(obj)}}
+ const oldBackground=scene.background,oldFog=scene.fog;
+ scene.background=new T.Color(0x10131d);scene.fog=new T.Fog(0x10131d,25,95);
+ renderer.render(scene,camera);
+ scene.background=oldBackground;scene.fog=oldFog;
+ for(const obj of hidden)obj.visible=true;
+}else renderer.render(scene,camera)}bike.position.z=8;tick();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
 <div id="beatIndicator" style="display:none;position:fixed;top:16%;left:50%;transform:translateX(-50%);z-index:8;background:rgba(45,22,67,.82);border:1px solid #d787ec;border-radius:18px;padding:6px 13px;color:#ffdcfa;font:bold 13px system-ui;pointer-events:none;white-space:nowrap">🎵 BEAT MODE</div>
 <div id="rideInventory" style="position:fixed;bottom:calc(108px + env(safe-area-inset-bottom,0px));right:12px;left:auto;transform:none;z-index:9;display:flex;gap:6px;pointer-events:auto;align-items:center;flex-direction:row-reverse"><button id="stashToggle" style="padding:10px;border-radius:12px;background:#3a4b69;color:white">🎒 STASH</button><button id="drinkBeer" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍺 0</button><button id="eatMushroom" style="padding:10px;border-radius:12px;background:#5a3851;color:white">🍄 0</button><span id="starHud" style="background:#142c48b8;padding:10px;border-radius:12px;color:#ffe16c">⭐ 0/5 · ♥ 0</span></div><button id="gameUpdateButton" type="button">↻ UPDATE GAME</button><div id="gameUpdateMessage" role="status"></div>
