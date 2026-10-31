@@ -632,7 +632,7 @@ const controlPositionsKey='mayhem-control-positions-v1';const controlPresetsKey=
 let controlPositions={};try{controlPositions=JSON.parse(localStorage.getItem(controlPositionsKey)||'{}')||{}}catch{}
 let movingControl=null,controlDrag=null,lastControlTap=new WeakMap(),wobbleTimeout=null;
 let controlPresets={};try{controlPresets=JSON.parse(localStorage.getItem(controlPresetsKey)||'{}')||{}}catch{}
-const presetControls=document.createElement('div');presetControls.id='mayhemPresets';presetControls.innerHTML='<label>LAYOUT</label><select id="mayhemPresetSelect"><option value="default1">Default 1</option><option value="default2">Default 2</option><option value="default3">Default 3</option><option value="A">Custom A</option><option value="B">Custom B</option><option value="C">Custom C</option></select><button id="mayhemSavePreset" type="button">SAVE</button>';
+const presetControls=document.createElement('div');presetControls.id='mayhemPresets';presetControls.innerHTML='<label>LAYOUT</label><select id="mayhemPresetSelect"><option value="default1">Default 1</option><option value="default2">Default 2</option><option value="default3">Default 3</option><option value="A">Custom A</option><option value="B">Custom B</option><option value="C">Custom C</option></select><button id="mayhemSavePreset" type="button">SAVE</button><button id="mayhemAlignControls" type="button">ALIGN</button>';
 presetControls.style.cssText='position:fixed;left:8px;top:84px;z-index:16;background:#111b29db;padding:5px;border-radius:8px;display:flex;gap:4px;align-items:center;font:10px system-ui;color:white';
 presetControls.querySelectorAll('select,button').forEach(e=>e.style.cssText='font-size:11px;padding:5px;border-radius:5px;max-width:94px');document.body.appendChild(presetControls);
 function presetLayout(name){if(name==='default1')return {};if(name==='default2'||name==='default3')return Object.fromEntries(movableControls().filter(e=>e.tagName==='BUTTON').map((e,i)=>[controlIdentity(e),{x:i%2?(name==='default2'?.83:.72):(name==='default2'?.04:.13),y:(name==='default2'?.45:.38)+Math.floor(i/2)*.085}]));return controlPresets[name]||{}}
@@ -640,6 +640,23 @@ function applyControlPreset(name){if(movingControl)lockMovingControl();controlPo
 presetControls.querySelector('select').onchange=e=>applyControlPreset(e.target.value);
 presetControls.querySelector('button').onclick=()=>{const name=presetControls.querySelector('select').value;if(!['A','B','C'].includes(name)){popup('SELECT CUSTOM A, B OR C TO SAVE');return}controlPresets[name]=JSON.parse(JSON.stringify(controlPositions));try{localStorage.setItem(controlPresetsKey,JSON.stringify(controlPresets))}catch{}popup('💾 SAVED LAYOUT '+name)};
 
+// Align only user-positioned controls, leaving untouched defaults exactly as designed.
+presetControls.querySelector('#mayhemAlignControls').onclick=()=>{
+ const gap=10,step=12,placed=[];
+ const controls=movableControls().filter(b=>controlPositions[controlIdentity(b)]);
+ controls.sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top);
+ for(const b of controls){
+  const rect=b.getBoundingClientRect(),w=rect.width,h=rect.height;
+  let x=Math.max(0,Math.min(innerWidth-w,Math.round(rect.left/step)*step));
+  let y=Math.max(0,Math.min(innerHeight-h,Math.round(rect.top/step)*step));
+  let attempts=0;
+  while(placed.some(p=>x<p.x+p.w+gap&&x+w+gap>p.x&&y<p.y+p.h+gap&&y+h+gap>p.y)&&attempts++<40){
+   y+=step;if(y+h>innerHeight){y=0;x=Math.min(innerWidth-w,x+step)}
+  }
+  positionControl(b,x,y);controlPositions[controlIdentity(b)]={x:x/innerWidth,y:y/innerHeight};placed.push({x,y,w,h});
+ }
+ saveControlPositions();popup(controls.length?'📐 CONTROLS ALIGNED — '+controls.length+' MOVED':'📐 DEFAULT CONTROLS ALREADY ALIGNED');
+};
 const controlIdentity=b=>b.id||b.getAttribute('data-key')||b.getAttribute('aria-label')||b.textContent.trim();
 function saveControlPositions(){try{localStorage.setItem(controlPositionsKey,JSON.stringify(controlPositions))}catch{}}
 function positionControl(b,x,y){b.style.position='fixed';b.style.left=Math.round(x)+'px';b.style.top=Math.round(y)+'px';b.style.right='auto';b.style.bottom='auto';b.style.transform='none';b.style.margin='0';b.style.zIndex='95'}
