@@ -249,7 +249,7 @@ function updateMountainYetis(dt){
  for(let i=yetiProjectiles.length-1;i>=0;i--){const p=yetiProjectiles[i];p.life-=dt;p.velocity.y-=19*dt;p.g.position.addScaledVector(p.velocity,dt);p.g.rotation.x+=dt*7;p.g.rotation.z+=dt*5;const d=p.g.position.distanceTo(bike.position);if(p.life<=0||p.g.position.y<mountainHeightAt(p.g.position.x,p.g.position.z)-2){scene.remove(p.g);yetiProjectiles.splice(i,1);continue}if(d<2.6&&crashTimer<=0&&mayhemRecoveryShield<=0){scene.remove(p.g);yetiProjectiles.splice(i,1);health=Math.max(0,health-(p.stick?9:14));popup(p.stick?'🪵 YETI STICK HIT! -9 HP':'🪨 YETI ROCK HIT! -14 HP');if(health<=0)eject(0)}}
  for(const y of mountainYetis){
   if(y.alienTaken)continue;
-  y.knockdown=Math.max(0,(y.knockdown||0)-dt);if(y.knockdown>0){y.g.rotation.z=Math.sign(y.homeX||1)*1.25;y.g.position.y=mountainHeightAt(y.g.position.x,y.g.position.z)+.7;continue}else if(Math.abs(y.g.rotation.z)>1)y.g.rotation.z=0;
+  y.knockdown=Math.max(0,(y.knockdown||0)-dt);if(y.knockdown>0){y.g.rotation.z=Math.sign(y.homeX||1)*Math.min(1.5,(4.5-y.knockdown)*3);y.g.position.y=mountainHeightAt(y.g.position.x,y.g.position.z)+Math.max(-2,2-y.knockdown);y.g.visible=y.knockdown>3.3;continue}else if(Math.abs(y.g.rotation.z)>1)y.g.rotation.z=0;
   y.timer=Math.max(0,y.timer-dt);y.cooldown=Math.max(0,y.cooldown-dt);y.homeZ+=speed*.19*dt*.12;if(Math.abs(y.g.position.z-bike.position.z)>180){y.g.visible=false;continue}y.g.visible=true;
   const dx=bike.position.x-y.g.position.x,dz=bike.position.z-y.g.position.z,dist=Math.max(.01,Math.hypot(dx,dz));
   if(dist<3.4&&Math.abs(bike.position.y-y.g.position.y)<4&&speed>35&&crashTimer<=0&&y.knockdown<=0){y.knockdown=4.5;y.mode='retreat';y.cooldown=7;score+=150;popup('💥 YETI KNOCKDOWN +150');continue}
@@ -641,10 +641,10 @@ function positionControl(b,x,y){b.style.position='fixed';b.style.left=Math.round
 function lockMovingControl(){clearTimeout(wobbleTimeout);wobbleTimeout=null;if(!movingControl)return;const b=movingControl;b.classList.remove('mayhem-wobble');const rect=b.getBoundingClientRect();controlPositions[controlIdentity(b)]={x:rect.left/innerWidth,y:rect.top/innerHeight};saveControlPositions();movingControl=null;controlDrag=null;popup('📌 CONTROL LOCKED')}
 const wobbleStyle=document.createElement('style');wobbleStyle.textContent='@keyframes mayhemWobble{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}.mayhem-wobble{animation:mayhemWobble .22s ease-in-out infinite!important;outline:2px dashed #ffd75a!important;touch-action:none!important;z-index:95!important}';document.head.appendChild(wobbleStyle);
 function installMovableControls(){for(const b of movableControls()){if(b.dataset.mayhemMovable)return;b.dataset.mayhemMovable='1';const saved=controlPositions[controlIdentity(b)];if(saved)positionControl(b,Math.max(0,Math.min(innerWidth-b.offsetWidth,saved.x*innerWidth)),Math.max(0,Math.min(innerHeight-b.offsetHeight,saved.y*innerHeight)));
-b.addEventListener('pointerdown',e=>{const now=Date.now(),previous=lastControlTap.get(b)||{time:0,count:0};const count=now-previous.time<450?previous.count+1:1;lastControlTap.set(b,{time:now,count});if(count>=3&&!mayhemLayoutMode){lastControlTap.set(b,{time:0,count:0});b.classList.toggle('mayhem-wobble');if(b.classList.contains('mayhem-wobble')){const rect=b.getBoundingClientRect();positionControl(b,rect.left,rect.top)}}
+b.addEventListener('pointerdown',e=>{const now=Date.now(),previous=lastControlTap.get(b)||{time:0,count:0};const count=now-previous.time<450?previous.count+1:1;lastControlTap.set(b,{time:now,count});if(count>=3){lastControlTap.set(b,{time:0,count:0});b.classList.toggle('mayhem-wobble');if(b.classList.contains('mayhem-wobble')){const rect=b.getBoundingClientRect();positionControl(b,rect.left,rect.top)}}
 if(!b.classList.contains('mayhem-wobble'))return;const rect=b.getBoundingClientRect();controlDrag={id:e.pointerId,startX:e.clientX,startY:e.clientY,offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,moved:false};try{b.setPointerCapture(e.pointerId)}catch{}},true);
 b.addEventListener('pointermove',e=>{if(!controlDrag||controlDrag.id!==e.pointerId||!b.classList.contains('mayhem-wobble'))return;if(Math.hypot(e.clientX-controlDrag.startX,e.clientY-controlDrag.startY)<12&&!controlDrag.moved)return;controlDrag.moved=true;e.preventDefault();e.stopImmediatePropagation();positionControl(b,Math.max(0,Math.min(innerWidth-b.offsetWidth,e.clientX-controlDrag.offsetX)),Math.max(0,Math.min(innerHeight-b.offsetHeight,e.clientY-controlDrag.offsetY)))},true);
-b.addEventListener('pointerup',e=>{if(!controlDrag||controlDrag.id!==e.pointerId)return;const moved=controlDrag.moved;controlDrag=null;if(moved){e.preventDefault();e.stopImmediatePropagation();const rect=b.getBoundingClientRect();controlPositions[controlIdentity(b)]={x:rect.left/innerWidth,y:rect.top/innerHeight};saveControlPositions()}},true);
+b.addEventListener('pointerup',e=>{if(!controlDrag||controlDrag.id!==e.pointerId)return;const moved=controlDrag.moved;controlDrag=null;if(moved){e.preventDefault();e.stopImmediatePropagation();const rect=b.getBoundingClientRect();controlPositions[controlIdentity(b)]={x:rect.left/innerWidth,y:rect.top/innerHeight};saveControlPositions()}else if(b.classList.contains('mayhem-wobble')){b.classList.remove('mayhem-wobble');lastControlTap.set(b,{time:0,count:0})}},true);
 }}
 const mayhemLayoutButton=document.createElement('button');mayhemLayoutButton.id='mayhemLayoutToggle';mayhemLayoutButton.type='button';mayhemLayoutButton.textContent='✥ WOBBLE ALL';mayhemLayoutButton.style.cssText='position:fixed;top:126px;left:8px;z-index:120;font:bold 11px system-ui;color:white;background:#24466e;border:2px solid #9ac7f2;border-radius:7px;padding:7px;touch-action:manipulation';document.body.appendChild(mayhemLayoutButton);
 let mayhemLayoutMode=false;
@@ -1049,14 +1049,14 @@ function createGorge(){
  const group=new T.Group();scene.add(group);
  const rockMat=new T.MeshLambertMaterial({color:0x75675b,flatShading:true,side:T.DoubleSide});
  const cliffMat=new T.MeshLambertMaterial({color:0x8b7969,flatShading:true,side:T.DoubleSide});
- const voidMat=new T.MeshBasicMaterial({color:0x080d16,depthWrite:true,side:T.DoubleSide});
+ const voidMat=new T.MeshLambertMaterial({color:0x51443d,side:T.DoubleSide});
  const deckMat=new T.MeshLambertMaterial({color:0x555963,side:T.DoubleSide});
  const cableMat=new T.MeshBasicMaterial({color:0xb9c4c9});
  // A transverse ravine: its long axis runs LEFT-RIGHT across the highway.
  // Opaque dark opening covers the old road/ground; the actual bridge deck sits ABOVE it.
  const opening=cube(420,.15,246,voidMat,0,.28,0,group);
  // Recessed far bottom gives the opening depth, visible beside the narrow bridge.
- cube(420,.12,246,new T.MeshLambertMaterial({color:0x22232b}),0,-52,0,group);
+ cube(420,.12,246,new T.MeshLambertMaterial({color:0x51443d}),0,-22,0,group);for(let i=0;i<38;i++){const x=(Math.random()-.5)*390,z=(Math.random()-.5)*235;const rock=new T.Mesh(new T.DodecahedronGeometry(1+Math.random()*3,0),cliffMat);rock.position.set(x,-19,z);rock.rotation.set(Math.random(),Math.random(),0);group.add(rock)}
  // Cliff banks at either END of the crossing, not along the bridge sides.
  for(const bank of [-1,1]){
   cube(420,48,26,rockMat,0,-25.5,bank*136,group);
@@ -1098,8 +1098,8 @@ function updateGorge(dt){
  if(crashTimer<=0&&alienAbduction<=0&&airTime<=0&&!alienHover){
   if(across&&Math.abs(bike.position.x)<11){bike.position.y=Math.max(bike.position.y,.96);g.triggered=true}
   else if(approach&&Math.abs(bike.position.x)<11){bike.position.y=Math.max(bike.position.y,.5)}
-  else if(across&&Math.abs(bike.position.x)>12.3&&Math.abs(bike.position.x)<19&&bike.position.y<3&&!g.falling){
-   g.falling=true;gorgeFall=1.5;popup('⚠️ OVER THE EDGE!');
+  else if(across&&Math.abs(bike.position.x)>12.3&&bike.position.y<3&&!g.falling&&!gorgeTrail){
+   g.falling=true;gorgeFall=1.2;popup('⚠️ INTO THE ROCKY GORGE!');
   }
  }
  // Keep highway traffic visibly on top of the bridge, not buried beneath it.
@@ -1109,12 +1109,13 @@ function updateGorge(dt){
    if(Math.abs(cz)<128&&Math.abs(car.g.position.x)<11.5&&!car.crashed)car.g.position.y=Math.max(car.g.position.y,1.05);
   }
  }
- if(g.falling&&(alienHover||bike.position.y>8||Math.abs(bike.position.x)>23)){g.falling=false;gorgeFall=0}if(g.falling&&crashTimer<=0){gorgeFall-=dt;bike.position.y-=dt*19;bike.rotation.z+=dt*4;
-  if(gorgeFall<=0){g.falling=false;mountainCrash=true;eject(45);popup('💥 GORGE CRASH!')}
+ if(g.falling&&(alienHover||bike.position.y>8)){g.falling=false;gorgeFall=0}if(g.falling&&crashTimer<=0){gorgeFall-=dt;bike.position.y-=dt*19;bike.rotation.z+=dt*4;
+  if(gorgeFall<=0){g.falling=false;gorgeTrail=7;bike.position.y=-19;bike.rotation.z=0;health=Math.max(1,health-18);popup('🪨 ROCKY GORGE TRAIL — FIND YOUR WAY OUT!')}
  }
- if(g.group.position.z>205){scene.remove(g.group);gorge=null;gorgeFall=0}
+ if(gorgeTrail>0){gorgeTrail=Math.max(0,gorgeTrail-dt);bike.position.y=-19+19*(1-gorgeTrail/7)**2;if(gorgeTrail===0)popup('🏍️ BACK ABOVE THE GORGE!')}
+ if(g.group.position.z>205){scene.remove(g.group);gorge=null;gorgeFall=0;gorgeTrail=0}
 }
-function resetGorge(){if(gorge){scene.remove(gorge.group);gorge=null}gorgeClock=0;gorgeNext=45+Math.random()*25;gorgeFall=0}
+let gorgeTrail=0;function resetGorge(){if(gorge){scene.remove(gorge.group);gorge=null}gorgeClock=0;gorgeNext=45+Math.random()*25;gorgeFall=0;gorgeTrail=0}
 
 function tick(){requestAnimationFrame(tick);const dt=Math.min(.045,clock.getDelta());updateMushroomSize(dt);updateSound();updateNosFlame();updateTireFire(dt);updateMusicMix(dt);const nosVisual=playing&&!paused&&!storeOpen&&nosActive&&crashTimer<=0;document.getElementById("nosStreaks").classList.toggle("active",nosVisual);const targetFov=firstPerson?(nosVisual?Math.min(108,88+nosStack*2.2):78):(nosVisual?Math.min(100,79+nosStack*2.3):70);document.body.classList.toggle("nos-overload",nosVisual&&nosStack>=2);document.documentElement.style.setProperty("--nos-intensity",String(Math.max(0,nosStack-1)));if(Math.abs(camera.fov-targetFov)>.05){camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix()}if(playing&&!paused){updateCountry(dt);rushClock+=dt;if(rushActive>0){rushActive=Math.max(0,rushActive-dt);if(!rushActive){rushNext=rushClock+65+Math.random()*30;popup("RUSH HOUR OVER")}}else if(rushWarning>0){rushWarning=Math.max(0,rushWarning-dt);if(!rushWarning){rushActive=24;popup("RUSH HOUR! WATCH FOR LANE CHANGES!")}}else if(rushClock>=rushNext){rushWarning=5;popup("⚠ RUSH HOUR INCOMING!")};const rushBanner=document.getElementById("rushBanner");rushBanner.style.display=rushActive>0||rushWarning>0?"block":"none";rushBanner.classList.toggle("warn",rushWarning>0);rushBanner.textContent=rushWarning>0?"⚠ RUSH HOUR IN "+Math.ceil(rushWarning):"⚠ RUSH HOUR • "+Math.ceil(rushActive)+"s";updateConsumables(dt);updateHitchhiker(dt);updateHotelHearts(dt);updateMushroomRoad(dt);updateTripWorld(dt);for(let i=landingMarks.length-1;i>=0;i--){const m=landingMarks[i];m.g.position.z+=speed*.19*dt;m.life-=dt;if(m.life<=0){scene.remove(m.g);landingMarks.splice(i,1)}}nosTimer=Math.max(0,nosTimer-dt);nosActive=nosTimer>0&&crashTimer<=0;if(!nosActive)nosStack=0;if(nosActive&&speed>=0&&!keys.brake){speed=Math.min(290+Math.max(0,nosStack-1)*95,speed+(190+nosStack*65)*dt)}else if(speed>190)speed=Math.max(190,speed-65*dt);
 if(keys.brake){nosTimer=0;nosActive=false;nosStack=0;speed=Math.max(-38,speed-145*dt);if(speed<0&&speed>-3)speed=-3}
