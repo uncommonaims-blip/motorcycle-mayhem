@@ -239,7 +239,7 @@ const sunsetSky=new T.Color(0x89b5d5),nightSky=new T.Color(0x10172e);let dayCycl
 let offroadFocus=0,offroadBumpClock=0,mountainSurfaceY=0,mountainJumpCooldown=0;
 const mountainSightRay=new T.Raycaster(),mountainSightDirection=new T.Vector3(),mountainSightTarget=new T.Vector3();
 let mountainVisibilityFrame=0;function updateMountainVisibility(dt){if(++mountainVisibilityFrame%6!==0)return;mountainSightTarget.copy(bike.position).y+=1.5;mountainSightDirection.subVectors(mountainSightTarget,camera.position);const distance=mountainSightDirection.length();if(distance<.01)return;mountainSightRay.set(camera.position,mountainSightDirection.normalize());mountainSightRay.far=distance;const blocking=new Set(mountainSightRay.intersectObjects(sceneryParts.mountains.filter(o=>o.mesh.visible&&Math.abs(o.mesh.position.z-camera.position.z)<180&&Math.abs(o.mesh.position.x-camera.position.x)<125).map(o=>o.mesh),false).map(hit=>hit.object));for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const target=blocking.has(o.mesh)?.24:1;o.mesh.material.opacity=T.MathUtils.damp(o.mesh.material.opacity,target,10,dt);o.mesh.material.depthWrite=o.mesh.material.opacity>.95;if(o.mesh.userData.lastOcclusion!==target){o.mesh.userData.lastOcclusion=target;o.mesh.traverse(child=>{if(child===o.mesh||!child.isMesh||!child.material)return;child.material.opacity=target;child.material.transparent=target<1;child.material.depthWrite=target>=1})}}}
-function mountainHeightAt(x,z){let height=0;for(const o of sceneryParts.mountains){const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;const distance=Math.hypot(dx,dz),angle=Math.atan2(dz,dx),radius=o.radius*o.mesh.scale.x*ridgeProfile(angle,o.seed||0);if(distance>=radius)continue;const coneHeight=o.height*o.mesh.scale.y;const base=o.mesh.position.y-coneHeight*.5;const rough=.035*Math.sin(distance*.65+angle*7+o.seed);const surface=base+coneHeight*Math.max(0,1-distance/radius)*(1+rough);height=Math.max(height,surface)}return Math.max(0,height)}
+function mountainHeightAt(x,z){let height=0;const ray=new T.Raycaster(new T.Vector3(x,180,z),new T.Vector3(0,-1,0),0,300);for(const o of sceneryParts.mountains){if(!o.mesh.visible)continue;const dx=x-o.mesh.position.x,dz=z-o.mesh.position.z;if(Math.hypot(dx,dz)>o.radius*1.4)continue;o.mesh.updateWorldMatrix(true,false);const intersections=ray.intersectObject(o.mesh,false);if(intersections.length)height=Math.max(height,intersections[0].point.y)}return Math.max(0,height)}
 /* Three distance layers create natural side-scrolling depth without heavy geometry. */
 const sceneryLayers=new T.Group();scene.add(sceneryLayers);
 const mountainMat=new T.MeshLambertMaterial({color:0x8299ad,flatShading:true,side:T.DoubleSide});
@@ -378,7 +378,7 @@ for(const side of [-1,1]){
   const seed=i+side*37;const mesh=new T.Mesh(rockyMountainGeometry(w*.65,h,seed),mountainMat);const mountainHighGeometry=mesh.geometry,mountainLowGeometry=rockyMountainGeometry(w*.65,h,seed,false,0);
   const snowHeight=h*.27,snowRadius=w*.65*(snowHeight/h);
   const snow=new T.Mesh(rockyMountainGeometry(snowRadius*1.08,snowHeight,seed,true),new T.MeshLambertMaterial({color:0xf1f6fa,flatShading:true,transparent:true,depthWrite:true,side:T.DoubleSide}));
-  snow.position.y=h*.5-snowHeight*.5+.02;mesh.add(snow);
+  snow.position.y=h*.5-snowHeight*.5+.02;snow.userData.isMountainSnow=true;mesh.add(snow);
   mesh.position.set(side*(88+i%3*19),h*.43-3,-20-i*22);
   mesh.material=mountainMat.clone();mesh.material.transparent=true;if(i%2===0)buildMountainCave(mesh,w*.65,h,i+side*23);sceneryLayers.add(mesh);sceneryParts.mountains.push({mesh,x:mesh.position.x,radius:w*.65,height:h,seed,highGeometry:mountainHighGeometry,lowGeometry:mountainLowGeometry,lodNear:true});if(i%3===0)makeYeti(mesh,i+side*19);
  }
@@ -1066,34 +1066,46 @@ addEventListener('keyup',e=>{if(e.key.toLowerCase()==='u')alienClimb=false});fun
 }
 // Real surface-only mountain hits: empty air never absorbs a photon.
 const mountainShards=[];
-function blastMountainSurface(mountain,point){
- const mesh=mountain.mesh,local=mesh.worldToLocal(point.clone()),base=new T.Vector3(0,-mountain.height/2,0);
+function blastMountainSurface(mountain,point,hitMesh=mountain.mesh){
+ const mesh=mountain.mesh;mesh.updateWorldMatrix(true,true);
+ const local=mesh.worldToLocal(point.clone()),base=new T.Vector3(0,-mountain.height/2,0);
  const outward=local.clone().sub(base).normalize(),worldOut=outward.clone().transformDirection(mesh.matrixWorld);
  const blastRadius=mountain.radius*.7,blastHeight=mountain.height*.5;
  let trianglesRemoved=0;
- for(const key of ['highGeometry','lowGeometry']){
-  const original=mountain[key];if(!original||!original.index)continue;
-  const pos=original.getAttribute('position'),idx=original.index.array,remaining=[];
+ function cutGeometry(original,center,radius,height){
+  if(!original||!original.index)return {geometry:original,removed:0};
+  const pos=original.getAttribute('position'),idx=original.index.array,remaining=[];let removed=0;
   for(let j=0;j<idx.length;j+=3){
    const a=idx[j],b=idx[j+1],c=idx[j+2];
    const x=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3,y=(pos.getY(a)+pos.getY(b)+pos.getY(c))/3,z=(pos.getZ(a)+pos.getZ(b)+pos.getZ(c))/3;
-   const dx=(x-local.x)/blastRadius,dy=(y-local.y)/blastHeight,dz=(z-local.z)/blastRadius;
-   if(dx*dx+dy*dy+dz*dz<1){if(key==='highGeometry')trianglesRemoved++}else remaining.push(a,b,c);
+   const dx=(x-center.x)/radius,dy=(y-center.y)/height,dz=(z-center.z)/radius;
+   if(dx*dx+dy*dy+dz*dz<1)removed++;else remaining.push(a,b,c);
   }
-  if(remaining.length===idx.length)continue;
-  const updated=original.clone();updated.setIndex(remaining);updated.computeVertexNormals();
-  mountain[key]=updated;if(mesh.geometry===original)mesh.geometry=updated;
-  // Keep old shared LOD geometry untouched; future hits use the updated geometry.
+  if(!removed)return {geometry:original,removed:0};
+  const geometry=original.clone();geometry.setIndex(remaining);geometry.computeVertexNormals();
+  return {geometry,removed};
  }
- if(local.y>mountain.height*.18)for(const child of mesh.children)if(child.isMesh&&child.position.y>0)child.visible=false;
- const count=Math.min(26,Math.max(10,Math.round(trianglesRemoved*.45)));
+ for(const key of ['highGeometry','lowGeometry']){
+  const original=mountain[key];const cut=cutGeometry(original,local,blastRadius,blastHeight);
+  if(!cut.removed)continue;trianglesRemoved+=key==='highGeometry'?cut.removed:0;
+  mountain[key]=cut.geometry;if(mesh.geometry===original)mesh.geometry=cut.geometry;
+ }
+ // Cut the snowcap using the same world-space blast, transformed into its local coordinates.
+ for(const snow of mesh.children){
+  if(!snow.isMesh||!snow.userData.isMountainSnow)continue;
+  const snowLocal=snow.worldToLocal(point.clone());
+  const cut=cutGeometry(snow.geometry,snowLocal,blastRadius,blastHeight);
+  if(cut.removed){snow.geometry=cut.geometry;trianglesRemoved+=cut.removed}
+ }
+ if(!trianglesRemoved)return false;
+ const count=Math.min(26,Math.max(10,Math.round(trianglesRemoved*.4)));
  for(let i=0;i<count;i++){
-  const rock=new T.Mesh(new T.TetrahedronGeometry(.5+Math.random()*1.3),new T.MeshLambertMaterial({color:i%3?0x718392:0xc1cbd0,flatShading:true}));
+  const rock=new T.Mesh(new T.TetrahedronGeometry(.5+Math.random()*1.3),new T.MeshLambertMaterial({color:i%3?0x718392:0xeaf2f7,flatShading:true}));
   rock.position.copy(point).add(new T.Vector3((Math.random()-.5)*4,(Math.random()-.5)*4,(Math.random()-.5)*4));scene.add(rock);
   const velocity=worldOut.clone().add(new T.Vector3((Math.random()-.5)*.9,Math.random()*.6,(Math.random()-.5)*.9)).normalize().multiplyScalar(12+Math.random()*19);
   mountainShards.push({rock,velocity,life:1.2+Math.random()});
  }
- photonExplosion(point.x,point.y,point.z);
+ photonExplosion(point.x,point.y,point.z);return true;
 }
 function updateMountainShards(dt){
  for(let i=mountainShards.length-1;i>=0;i--){const s=mountainShards[i];s.life-=dt;s.velocity.y-=17*dt;s.rock.position.addScaledVector(s.velocity,dt);s.rock.rotation.x+=dt*5;s.rock.rotation.z+=dt*4;if(s.life<=0){scene.remove(s.rock);s.rock.geometry.dispose();s.rock.material.dispose();mountainShards.splice(i,1)}}
@@ -1157,7 +1169,7 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   let hit=false;for(const jet of [...fighterJets]){const start=b.previous,end=b.mesh.position,travel=end.clone().sub(start),lengthSq=travel.lengthSq(),t=lengthSq?T.MathUtils.clamp(jet.g.position.clone().sub(start).dot(travel)/lengthSq,0,1):0,closest=start.clone().addScaledVector(travel,t);if(closest.distanceTo(jet.g.position)<4.2){jetExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);photonExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);scene.remove(jet.g);fighterJets.splice(fighterJets.indexOf(jet),1);award(3000,'⚡ PHOTON JET DOWN!');popup('💥 ENEMY JET DISINTEGRATED!');hit=true;break}}if(!hit)for(const car of cars){if(car.crashed||car.alienTaken)continue;if(Math.abs(car.g.position.x-b.mesh.position.x)<car.w/2+1&&Math.abs(car.g.position.z-b.mesh.position.z)<car.l/2+2){car.crashed=true;car.life=.15;car.blastVy=0;car.blastVz=0;car.spin=0;photonExplosion(car.g.position.x,car.g.position.y+1.5,car.g.position.z);car.g.visible=false;award(car.oncoming?1400:900,'💥 PHOTON EXPLOSION!');hit=true;break}}
   if(!hit&&ufo){const a=b.previous,c=b.mesh.position,delta=c.clone().sub(a),length=delta.lengthSq(),t=length?T.MathUtils.clamp(ufo.g.position.clone().sub(a).dot(delta)/length,0,1):0,nearest=a.clone().addScaledVector(delta,t);if(nearest.distanceTo(ufo.g.position)<7.5){ufo.damage=(ufo.damage||0)+1;photonExplosion(nearest.x,nearest.y,nearest.z);ufo.g.position.x+=(Math.random()-.5)*7;popup('⚡ UFO HIT — SYSTEMS SPARKING!');if(ufo.damage>=4){photonExplosion(ufo.g.position.x,ufo.g.position.y,ufo.g.position.z);ufo.beamEnd=0;ufo.targetX+=(Math.random()-.5)*90;popup('🛸 UFO DISABLED — VEERING OFF!')}hit=true}}
   if(!hit)for(const o of [...sceneryParts.trees,...sceneryParts.grass]){const center=o.mesh.position;if(Math.abs(center.z-b.mesh.position.z)<3&&Math.abs(center.x-b.mesh.position.x)<3&&Math.abs(center.y-b.mesh.position.y)<12){photonExplosion(center.x,Math.max(1,b.mesh.position.y),center.z);o.mesh.position.z=-500;o.mesh.visible=false;hit=true;break}}
-  if(!hit){const travel=b.mesh.position.clone().sub(b.previous),distance=travel.length();if(distance>0){const ray=new T.Raycaster(b.previous,travel.normalize(),0,distance+0.1);const candidates=sceneryParts.mountains.filter(o=>o.mesh.visible&&Math.abs(o.mesh.position.z-b.mesh.position.z)<o.radius+distance+10&&Math.abs(o.mesh.position.x-b.mesh.position.x)<o.radius+10).map(o=>o.mesh);const impacts=ray.intersectObjects(candidates,false);if(impacts.length){const impact=impacts[0],mountain=sceneryParts.mountains.find(o=>o.mesh===impact.object);if(mountain){blastMountainSurface(mountain,impact.point);hit=true;popup('⛰️ MOUNTAIN CHUNK BLOWN AWAY!')}}}}
+  if(!hit){const travel=b.mesh.position.clone().sub(b.previous),distance=travel.length();if(distance>0){const ray=new T.Raycaster(b.previous,travel.normalize(),0,distance+0.1);const candidates=sceneryParts.mountains.filter(o=>o.mesh.visible&&Math.abs(o.mesh.position.z-b.mesh.position.z)<o.radius+distance+10&&Math.abs(o.mesh.position.x-b.mesh.position.x)<o.radius+10).map(o=>o.mesh);const impacts=ray.intersectObjects(candidates,true);if(impacts.length){const impact=impacts[0],mountain=sceneryParts.mountains.find(o=>impact.object===o.mesh||o.mesh.children.includes(impact.object));if(mountain){if(blastMountainSurface(mountain,impact.point,impact.object)){hit=true;popup('⛰️ MOUNTAIN CHUNK BLOWN AWAY!')}}}}}
   if(!hit)for(const y of mountainYetis){if(y.alienTaken)continue;if(Math.hypot(y.g.position.x-b.mesh.position.x,y.g.position.z-b.mesh.position.z)<3){y.mode='retreat';y.timer=5;y.cooldown=15;award(450,'⚡ YETI ZAPPED!');hit=true;break}}
   if(hit||b.life<=0||b.mesh.position.z< -230){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose();alienBolts.splice(i,1)}
  }
