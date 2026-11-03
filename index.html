@@ -281,12 +281,15 @@ function buildMountainCave(mountain,radius,height,seed){
   const sectionLength=34;
   for(let end=zFront;end>zBack;end-=sectionLength){
    const back=Math.max(zBack,end-sectionLength),length=end-back;
-   const geometry=new T.CylinderGeometry(5,5,length+.2,12,8,true);
+   const geometry=new T.CylinderGeometry(5,5,length+.3,12,8,true);
    const v=geometry.getAttribute('position');
    for(let i=0;i<v.count;i++){
     const y=v.getY(i),theta=Math.atan2(v.getZ(i),v.getX(i));
-    const z=(end+back)*.5-y,t=(-z)/totalLength;
-    const radius=wallRadiusAt(z)+.22+.16*Math.sin(theta*7+t*43);
+    const z=(end+back)*.5+y,t=(-z)/totalLength;
+    // Match shared segment endpoints exactly; transition to a broad cavern mouth.
+    const galleryDistance=Math.min(Math.abs(z-galleryStart),Math.abs(z-galleryEnd));
+    const galleryBlend=Math.max(0,1-galleryDistance/22);
+    const radius=wallRadiusAt(z)+.22+.16*Math.sin(theta*7+t*43)+galleryBlend*5.5;
     v.setX(i,Math.cos(theta)*radius+wallCenterAt(z));
     v.setZ(i,Math.sin(theta)*radius);
    }
@@ -301,7 +304,8 @@ function buildMountainCave(mountain,radius,height,seed){
  // Vast independent enclosed cavern connecting the upper and lower tunnel mouths.
  const chamberMat=new T.MeshLambertMaterial({color:0x647184,side:T.BackSide,flatShading:true});
  const chamber=new T.Mesh(new T.SphereGeometry(1,32,18),chamberMat);
- chamber.scale.set(27,24,63);
+ // Extend the cavern shell over both tunnel mouths, eliminating exposed sky at joins.
+ chamber.scale.set(27,24,72);
  chamber.position.set(0,-caveDrop*.38,galleryZ);
  tunnel.add(chamber);
  // Gentle tunnel fill light follows the cave itself, preserving depth and contrast.
