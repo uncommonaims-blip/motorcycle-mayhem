@@ -561,7 +561,7 @@ function updateCaveRide(dt){
   // Hovercraft flies within the tunnel's vertical envelope rather than following its floor.
   const caveFlying=alienHover&&alienUnlocked;
   if(caveFlying){
-   const ceiling=lowerFloor+(inGalleryPlaceholder=>inGalleryPlaceholder)(Math.abs(localFloorZ-ride.galleryZ)<46?17:7.1);
+   const ceiling=lowerFloor+(Math.abs(localFloorZ-ride.galleryZ)<46?17:7.1);
    const desiredY=T.MathUtils.clamp(lowerFloor+alienAltitude,lowerFloor+2.5,ceiling);
    bike.position.y=T.MathUtils.damp(bike.position.y,desiredY,5,dt);
    ride.descentVelocity=0;
@@ -1773,7 +1773,11 @@ if(caveRide){
 }
 headlight.material.color.setHex(caveRide||nightAmount>.3?0xffffff:0xfff1b0);
 skyStarMat.opacity=Math.max(0,(nightAmount-.25)*1.3);starField.visible=nightAmount>.25;
-document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);if(!caveRide){updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);}updateCaveRide(dt);if(!caveRide){updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);}
+document.querySelector('[data-key="nos"]').textContent='NOS '+Math.max(0,Math.floor(nosFuel));document.getElementById('dropOil').textContent='🛢 OIL '+Math.max(0,oilCans);if(!caveRide){updateSceneryParallax(dt);updateTripVisualAlignment();updateBeatWorld(dt);updateSkyStarSupply(dt);updateBirdFlocks(dt);updateHeaven(dt);updateSonicBoom(dt);updateFighterJets(dt);updateMountainYetis(dt);updateWildPickups(dt);}if(caveRide&&alienHover&&alienUnlocked){
+ // Flight inputs must still run in the cave: outdoor alien simulation is paused there.
+ alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,12);
+ bike.position.x+=alienStickX*dt*12;
+}updateCaveRide(dt);if(!caveRide){updateAlienMayhem(dt);updateGorge(dt);updateMountainVisibility(dt);}
 if(caveRide){
  // Isolate cave geometry for this render only; restore world objects afterward.
  const keep=new Set([caveRide.tunnel,bike,caveViewLamp,caveViewTarget,caveViewFill,...caveFragments.map(f=>f.mesh),...scene.children.filter(o=>o.isHemisphereLight||o.isAmbientLight||o.isDirectionalLight)]);
