@@ -545,7 +545,7 @@ function updateCaveRide(dt){
   const wallZ=bike.position.z-ride.tunnel.position.z;
   const galleryOpen=Math.abs(wallZ-ride.galleryZ)<46;
   const wallCenter=ride.centerX+ride.wallCenterAt(wallZ);
-  const wallLimit=galleryOpen?15:Math.max(3.1,ride.wallRadiusAt(wallZ)-1.5);
+  const wallLimit=galleryOpen?15:Math.max(2.8,ride.wallRadiusAt(wallZ)-(alienHover?2.3:1.5));
   const wallOffset=bike.position.x-wallCenter;
   const wallContact=Math.max(0,Math.abs(wallOffset)-wallLimit);
   if(wallContact>0){
@@ -558,14 +558,22 @@ function updateCaveRide(dt){
   bike.rotation.z+=ride.wallBank*.18;
   const localFloorZ=bike.position.z-ride.tunnel.position.z;
   const lowerFloor=ride.floorY+ride.floorAt(localFloorZ);
+  // Hovercraft flies within the tunnel's vertical envelope rather than following its floor.
+  const caveFlying=alienHover&&alienUnlocked;
+  if(caveFlying){
+   const ceiling=lowerFloor+(inGalleryPlaceholder=>inGalleryPlaceholder)(Math.abs(localFloorZ-ride.galleryZ)<46?17:7.1);
+   const desiredY=T.MathUtils.clamp(lowerFloor+alienAltitude,lowerFloor+2.5,ceiling);
+   bike.position.y=T.MathUtils.damp(bike.position.y,desiredY,5,dt);
+   ride.descentVelocity=0;
+  }
   // At the gallery precipice the rider becomes airborne and falls under gravity.
   // The lower shelf is broad enough to land on before the second tunnel.
   const inGallery=localFloorZ<ride.galleryZ+46&&localFloorZ>ride.galleryZ-46;
-  if(inGallery){
+  if(!caveFlying&&inGallery){
    if(!ride.wasInGallery){ride.descentVelocity=0;ride.wasInGallery=true;popup('🌋 GRAND CAVERN — WATCH THE DROP!')}
    ride.descentVelocity=Math.min(28,ride.descentVelocity+20*dt);
    bike.position.y=Math.max(ride.floorY-ride.caveDrop,bike.position.y-ride.descentVelocity*dt);
-  }else{
+  }else if(!caveFlying){
    bike.position.y=T.MathUtils.damp(bike.position.y,lowerFloor,7,dt);
   }
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
@@ -574,7 +582,7 @@ function updateCaveRide(dt){
   const caveX=bike.position.x-ride.tunnel.position.x;
   const overLava=Math.abs(caveX-ride.lavaCenter(caveZ))<ride.lavaWidth(caveZ)+.28&&Math.abs(caveZ-ride.galleryZ)>55;
   const onBridge=ride.bridgeLocations.some(bridge=>{if(Math.abs(caveZ-bridge.z)>bridge.halfLength)return false;const cx=bridge.x+(ride.lavaCenter(caveZ)-bridge.x)*.85;return Math.abs(caveX-cx)<bridge.halfWidth+.1;});
-  if(overLava&&!onBridge&&ride.lavaCooldown<=0){
+  if(!caveFlying&&overLava&&!onBridge&&ride.lavaCooldown<=0){
    health=Math.max(1,health-3);ride.lavaCooldown=1.7;
    popup('🔥 LAVA! -3 HP');
   }
@@ -1581,7 +1589,17 @@ const gasPct=Math.max(0,Math.min(100,fuel));document.getElementById('gasNeedle')
   obj.rotation.z+=dt*4;obj.rotation.x+=dt*2;
   if(a.life<=0){obj.scale.setScalar(1);obj.visible=true;obj.rotation.z=0;obj.rotation.x=0;if(a.type!=='bike')a.obj.alienTaken=false;alienRelease(a);alienFloating.splice(i,1)}
  }
- if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,85);bike.position.x+=alienStickX*dt*21}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){const ground=mountainHeightAt(bike.position.x,bike.position.z);alienHoverGround=T.MathUtils.damp(alienHoverGround,ground,2,dt);bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,alienHoverGround+alienAltitude),3,dt);bike.rotation.z=Math.sin(ufoClock*3)*.04}
+ if(alienUnlocked&&alienFlightTime>0){alienFlightTime=Math.max(0,alienFlightTime-dt);if(alienHover){
+ alienAltitude=T.MathUtils.clamp(alienAltitude+(alienStickY*24+(alienClimb?22:0))*dt,3,caveRide?12:85);
+ bike.position.x+=alienStickX*dt*(caveRide?12:21);
+}if(alienFlightTime===0){alienHover=false;alienUnlocked=false;alienPhotonUnlocked=false;alienFireHeld=false;alienClimb=false;alienControls.classList.remove('unlocked');alienTransform.style.display='none';alienUp.style.display='none';alienTransform.textContent='🛸 TRANSFORM';popup('🛸 ALIEN UPGRADE EXPIRED')}}if(alienHover&&alienUnlocked&&crashTimer<=0&&alienAbduction<=0){
+ if(!caveRide){
+  const ground=mountainHeightAt(bike.position.x,bike.position.z);
+  alienHoverGround=T.MathUtils.damp(alienHoverGround,ground,2,dt);
+  bike.position.y=T.MathUtils.damp(bike.position.y,Math.max(alienAltitude,alienHoverGround+alienAltitude),3,dt);
+ }
+ bike.rotation.z=Math.sin(ufoClock*3)*.04;
+}
  for(const w of alienWheels)w.rotation.y=T.MathUtils.damp(w.rotation.y,alienHover?0:Math.PI/2,8,dt);alienUp.style.display=alienHover?'none':'none';flightStick.style.display=alienHover?'block':'none';
  for(let i=alienBolts.length-1;i>=0;i--){const b=alienBolts[i];b.life-=dt;b.previous.copy(b.mesh.position);b.mesh.position.addScaledVector(b.velocity,dt);b.mesh.scale.setScalar(1+Math.sin(b.life*22)*.2);
   let hit=false;for(const jet of [...fighterJets]){const start=b.previous,end=b.mesh.position,travel=end.clone().sub(start),lengthSq=travel.lengthSq(),t=lengthSq?T.MathUtils.clamp(jet.g.position.clone().sub(start).dot(travel)/lengthSq,0,1):0,closest=start.clone().addScaledVector(travel,t);if(closest.distanceTo(jet.g.position)<4.2){jetExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);photonExplosion(jet.g.position.x,jet.g.position.y,jet.g.position.z);scene.remove(jet.g);fighterJets.splice(fighterJets.indexOf(jet),1);award(3000,'⚡ PHOTON JET DOWN!');popup('💥 ENEMY JET DISINTEGRATED!');hit=true;break}}if(!hit)for(const car of cars){if(car.crashed||car.alienTaken)continue;if(Math.abs(car.g.position.x-b.mesh.position.x)<car.w/2+1&&Math.abs(car.g.position.z-b.mesh.position.z)<car.l/2+2){car.crashed=true;car.life=.15;car.blastVy=0;car.blastVz=0;car.spin=0;photonExplosion(car.g.position.x,car.g.position.y+1.5,car.g.position.z);car.g.visible=false;award(car.oncoming?1400:900,'💥 PHOTON EXPLOSION!');hit=true;break}}
