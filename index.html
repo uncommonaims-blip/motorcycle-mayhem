@@ -166,6 +166,33 @@ body.beat-active #speedGauge{box-shadow:0 0 20px rgba(110,255,170,.8);border-col
 #topToolsPanel.open{display:flex}
 #topToolsPanel #musicToggle,#topToolsPanel #viewToggle,#topToolsPanel #gameUpdateButton{position:static!important;top:auto!important;right:auto!important;left:auto!important;bottom:auto!important;transform:none!important;display:block!important;width:100%;min-height:38px;padding:7px 8px!important;font-size:12px!important;text-align:left;z-index:auto!important}
 #gameUpdateMessage{top:calc(55px + env(safe-area-inset-top,0px));right:160px}
+
+/* Icon-first compact top controls, override inline legacy positions. */
+#mayhemTopDock{position:fixed;top:calc(9px + env(safe-area-inset-top,0px));left:8px;z-index:150;display:flex;align-items:center;gap:5px;max-width:calc(100vw - 120px)}
+#mayhemTopDock button{width:37px;height:37px;border-radius:50%;padding:0;background:#162c41d9;color:#fff;border:1px solid #d4e1ef88;font-size:18px;box-shadow:0 2px 6px #0006}
+#mayhemTopDock button[aria-expanded=true]{background:#b57d20}
+#mayhemTopDetails{position:fixed;top:calc(53px + env(safe-area-inset-top,0px));left:8px;z-index:149;display:none;max-width:min(92vw,350px);max-height:55vh;overflow:auto;background:#112437ed;color:white;border:1px solid #ffffff55;border-radius:12px;padding:10px;box-shadow:0 5px 18px #0009}
+#mayhemTopDetails.open{display:block}
+#mayhemTopDetails #mayhemPresets,#mayhemTopDetails #mayhemRoadGuide,#mayhemTopDetails #horizonControls,#mayhemTopDetails #hud,#mayhemTopDetails #healthPanel{position:static!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;transform:none!important;display:flex!important;max-width:100%!important;width:auto!important;margin:0!important;pointer-events:auto!important}
+#mayhemTopDetails #mayhemPresets{flex-wrap:wrap!important;gap:5px!important}
+#mayhemTopDetails #mayhemRoadGuide{font-size:12px!important;max-width:none!important}
+#mayhemTopDetails #hud{display:block!important;line-height:1.7!important;font-size:13px!important;cursor:default}
+#mayhemTopDetails #hud br{display:block!important}
+#mayhemTopDetails #hud #combo,#mayhemTopDetails #hud #wanted,#mayhemTopDetails #hud #oilRead{display:inline!important}
+#mayhemTopDetails #hud:before{display:none!important}
+#mayhemTopDetails #healthPanel{font-size:12px!important;display:block!important;margin-top:6px!important}
+#mayhemTopDetails #healthTrack{height:9px!important}
+body #mayhemLayoutToggle{display:none!important}
+body #mayhemPresets{display:none!important}
+body #mayhemRoadGuide{display:none!important}
+body #hud{display:none!important}
+body #healthPanel{display:none!important}
+body #horizonControls{display:none!important}
+body #mayhemTopDetails.open #mayhemPresets,body #mayhemTopDetails.open #mayhemRoadGuide,body #mayhemTopDetails.open #hud,body #mayhemTopDetails.open #healthPanel,body #mayhemTopDetails.open #horizonControls{display:flex!important}
+body #mayhemTopDetails.open #hud,body #mayhemTopDetails.open #healthPanel{display:block!important}
+body #mayhemTopDetails.open #mayhemRoadGuide{display:block!important}
+#topToolsToggle,#pause{border-radius:50%!important}
+@media(max-width:390px){#mayhemTopDock{gap:3px}#mayhemTopDock button{width:32px;height:32px;font-size:16px}}
 </style></head><body><div id="alienControls"><button id="alienTransform" type="button">🛸 TRANSFORM</button><button id="alienFire" type="button" aria-label="Fire photon" title="Hold to fire photons"><svg viewBox="0 0 100 40" width="88" height="35" aria-hidden="true" style="display:block;pointer-events:none"><path d="M21 2 L9 22 H23 L17 38 L39 15 H25 L33 2Z" fill="#f9ed72" stroke="#fff6c5" stroke-width="1.5"/><text x="42" y="26" fill="currentColor" font-size="14" font-weight="900" font-family="Arial,sans-serif">PHOTON</text></svg></button><button id="alienUp" type="button">⬆ ASCEND</button></div><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
  <div class="shop-scene">
   <div class="shop-sign">MAYHEM MOTOR MART <span>OPEN 24/7</span></div>
@@ -1832,5 +1859,41 @@ for(const id of ['musicToggle','viewToggle','gameUpdateButton']){const el=docume
 menu.addEventListener('click',()=>{const open=panel.classList.toggle('open');menu.setAttribute('aria-expanded',String(open));menu.textContent=open?'✕':'☰';});
 hud.setAttribute('role','button');hud.setAttribute('tabindex','0');hud.setAttribute('aria-label','Expand rider statistics');
 const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',toggle);hud.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+})();
+</script><script>
+(()=>{
+const dock=document.createElement('div');dock.id='mayhemTopDock';
+const details=document.createElement('div');details.id='mayhemTopDetails';
+document.body.append(dock,details);
+const groups=[
+ {id:'hud',icon:'🏆',name:'Score and rider status',extra:['healthPanel']},
+ {id:'mayhemRoadGuide',icon:'🧭',name:'Mileage and navigation'},
+ {id:'horizonControls',icon:'🌅',name:'Custom sky'},
+ {id:'mayhemPresets',icon:'🎛️',name:'Control layouts'},
+ {id:'mayhemLayoutToggle',icon:'✥',name:'Wobble controls',action:true}
+];
+const nodes=new Map(),buttons=new Map();
+let active=null;
+for(const group of groups){
+ const btn=document.createElement('button');btn.type='button';btn.textContent=group.icon;btn.title=group.name;btn.setAttribute('aria-label',group.name);btn.setAttribute('aria-expanded','false');dock.appendChild(btn);buttons.set(group.id,btn);
+ btn.addEventListener('click',()=>{
+  if(group.action){document.getElementById(group.id)?.click();return}
+  const same=active===group.id;active=same?null:group.id;
+  for(const [id,b] of buttons)b.setAttribute('aria-expanded',String(id===active));
+  details.replaceChildren();
+  if(active){for(const n of nodes.get(active)||[])details.appendChild(n);details.classList.add('open')}
+  else details.classList.remove('open');
+ });
+}
+function attach(){
+ for(const group of groups){
+  if(group.action||nodes.has(group.id))continue;
+  const node=document.getElementById(group.id);if(!node)continue;
+  const list=[node,...(group.extra||[]).map(id=>document.getElementById(id)).filter(Boolean)];
+  nodes.set(group.id,list);
+  for(const n of list){n.remove();n.style.setProperty('visibility','visible');}
+ }
+}
+attach();let tries=0;const watch=setInterval(()=>{attach();if(++tries>50)clearInterval(watch)},250);
 })();
 </script></body></html>
