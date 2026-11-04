@@ -200,7 +200,7 @@ body #mayhemTopDetails.open #mayhemRoadGuide{display:block!important}
 #topToolsToggle{right:54px!important;left:auto!important;top:calc(9px + env(safe-area-inset-top,0px))!important;width:37px!important;height:37px!important;border-radius:50%!important}
 #pause{right:8px!important;left:auto!important;top:calc(9px + env(safe-area-inset-top,0px))!important;width:37px!important;height:37px!important}
 #mayhemTopDetails{left:8px!important;right:auto!important}
-#gameStartupError{position:fixed;z-index:99999;top:20%;left:5%;right:5%;max-height:65vh;overflow:auto;padding:16px;background:#2b1520;color:#fff;border:2px solid #ffbb56;border-radius:14px;font:13px/1.5 system-ui;white-space:pre-wrap}
+#gameStartupError{position:fixed;z-index:99999;top:38%;left:5%;right:5%;max-height:65vh;overflow:auto;padding:16px;background:#2b1520;color:#fff;border:2px solid #ffbb56;border-radius:14px;font:13px/1.5 system-ui;white-space:pre-wrap}
 
 #mayhemVersion{position:fixed;right:8px;bottom:calc(3px + env(safe-area-inset-bottom,0px));z-index:2;color:#ffffffa8;background:#10182788;border-radius:5px;padding:2px 5px;font:600 10px/1.1 system-ui;pointer-events:none;letter-spacing:.3px}
 </style></head><body><div id="alienControls"><button id="alienTransform" type="button">🛸 TRANSFORM</button><button id="alienFire" type="button" aria-label="Fire photon" title="Hold to fire photons"><svg viewBox="0 0 100 40" width="88" height="35" aria-hidden="true" style="display:block;pointer-events:none"><path d="M21 2 L9 22 H23 L17 38 L39 15 H25 L33 2Z" fill="#f9ed72" stroke="#fff6c5" stroke-width="1.5"/><text x="42" y="26" fill="currentColor" font-size="14" font-weight="900" font-family="Arial,sans-serif">PHOTON</text></svg></button><button id="alienUp" type="button">⬆ ASCEND</button></div><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
@@ -1902,7 +1902,8 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
 (()=>{
 const dock=document.createElement('div');dock.id='mayhemTopDock';
 const details=document.createElement('div');details.id='mayhemTopDetails';
-document.body.append(dock,details);
+const parked=document.createElement('div');parked.id='mayhemParkedControls';parked.style.display='none';
+document.body.append(dock,details,parked);
 const groups=[
  {id:'hud',icon:'🏆',name:'Score and rider status',extra:['healthPanel']},
  {id:'mayhemRoadGuide',icon:'🧭',name:'Mileage and navigation'},
@@ -1918,6 +1919,7 @@ for(const group of groups){
   if(group.action){document.getElementById(group.id)?.click();return}
   const same=active===group.id;active=same?null:group.id;
   for(const [id,b] of buttons)b.setAttribute('aria-expanded',String(id===active));
+  for(const node of [...details.children])parked.appendChild(node);
   details.replaceChildren();
   if(active){for(const n of nodes.get(active)||[])details.appendChild(n);details.classList.add('open')}
   else details.classList.remove('open');
@@ -1929,9 +1931,9 @@ function attach(){
   const node=document.getElementById(group.id);if(!node)continue;
   const list=[node,...(group.extra||[]).map(id=>document.getElementById(id)).filter(Boolean)];
   nodes.set(group.id,list);
-  for(const n of list){n.remove();n.style.setProperty('visibility','visible');}
+  for(const n of list){parked.appendChild(n);n.style.setProperty('visibility','visible');}
  }
 }
 attach();let tries=0;const watch=setInterval(()=>{attach();if(++tries>50)clearInterval(watch)},250);
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V3</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V4</div></body></html>
