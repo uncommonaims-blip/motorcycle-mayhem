@@ -203,6 +203,24 @@ body #mayhemTopDetails.open #mayhemRoadGuide{display:block!important}
 #gameStartupError{position:fixed;z-index:99999;top:38%;left:5%;right:5%;max-height:65vh;overflow:auto;padding:16px;background:#2b1520;color:#fff;border:2px solid #ffbb56;border-radius:14px;font:13px/1.5 system-ui;white-space:pre-wrap}
 
 #mayhemVersion{position:fixed;right:8px;bottom:calc(3px + env(safe-area-inset-bottom,0px));z-index:2;color:#ffffffa8;background:#10182788;border-radius:5px;padding:2px 5px;font:600 10px/1.1 system-ui;pointer-events:none;letter-spacing:.3px}
+
+/* Independent left/right icon rails; panels stay in normal flow so multiple can open. */
+#mayhemTopDock,#mayhemTopDetails{display:none!important}
+.mayhemRail{position:fixed;top:calc(58px + env(safe-area-inset-top,0px));bottom:calc(85px + env(safe-area-inset-bottom,0px));width:min(42vw,190px);z-index:155;display:flex;flex-direction:column;gap:7px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;pointer-events:none}
+#mayhemLeftRail{left:5px;align-items:flex-start}
+#mayhemRightRail{right:5px;align-items:flex-end}
+.mayhemRailSection{display:flex;flex-direction:column;gap:4px;align-items:inherit;width:100%;pointer-events:none}
+.mayhemRailButton{flex:none!important;width:37px!important;height:37px!important;border-radius:50%!important;padding:0!important;font-size:18px!important;background:#162c41e8!important;color:#fff!important;border:1px solid #d4e1ef88!important;box-shadow:0 2px 6px #0008!important;pointer-events:auto!important}
+.mayhemRailButton[aria-expanded=true]{background:#9c6a21!important}
+.mayhemRailPanel{width:100%;max-height:38vh;overflow:auto;overscroll-behavior:contain;border:1px solid #ffffff55;border-radius:10px;background:#112437ed;padding:7px;color:#fff;pointer-events:auto;box-shadow:0 4px 12px #0008}
+.mayhemRailPanel[hidden]{display:none!important}
+.mayhemRailPanel #hud,.mayhemRailPanel #healthPanel,.mayhemRailPanel #mayhemRoadGuide,.mayhemRailPanel #horizonControls,.mayhemRailPanel #mayhemPresets{position:static!important;inset:auto!important;transform:none!important;display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;pointer-events:auto!important;font-size:11px!important;line-height:1.5!important}
+.mayhemRailPanel #mayhemPresets,.mayhemRailPanel #horizonControls{display:flex!important;flex-wrap:wrap!important;gap:4px!important}
+.mayhemRailPanel #hud br{display:block!important}
+.mayhemRailPanel #hud #combo,.mayhemRailPanel #hud #wanted,.mayhemRailPanel #hud #oilRead{display:inline!important}
+.mayhemRailPanel button{font-size:11px!important;padding:5px!important}
+#mayhemVersion{position:fixed!important;bottom:calc(2px + env(safe-area-inset-bottom,0px))!important;right:3px!important;left:auto!important;top:auto!important;z-index:2147483647!important;display:block!important;visibility:visible!important;opacity:1!important;font:900 16px/1 system-ui!important;letter-spacing:.4px!important;color:#fff!important;background:#13233af2!important;border:2px solid #ffcf4c!important;border-radius:7px!important;padding:5px 7px!important;text-shadow:0 1px 3px #000!important;pointer-events:none!important}
+#overlay h1{font-family:Impact,'Arial Black',system-ui,sans-serif!important;font-weight:1000!important;font-style:italic!important;letter-spacing:.025em!important;line-height:.9!important;font-size:clamp(48px,12vw,92px)!important;color:#ffdd48!important;-webkit-text-stroke:1.2px #45190d;text-shadow:3px 3px 0 #d94a17,6px 6px 0 #5c1a1b,0 8px 20px #000c!important;transform:skew(-5deg);margin:12px auto 22px!important;max-width:95vw}
 </style></head><body><div id="alienControls"><button id="alienTransform" type="button">🛸 TRANSFORM</button><button id="alienFire" type="button" aria-label="Fire photon" title="Hold to fire photons"><svg viewBox="0 0 100 40" width="88" height="35" aria-hidden="true" style="display:block;pointer-events:none"><path d="M21 2 L9 22 H23 L17 38 L39 15 H25 L33 2Z" fill="#f9ed72" stroke="#fff6c5" stroke-width="1.5"/><text x="42" y="26" fill="currentColor" font-size="14" font-weight="900" font-family="Arial,sans-serif">PHOTON</text></svg></button><button id="alienUp" type="button">⬆ ASCEND</button></div><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
  <div class="shop-scene">
   <div class="shop-sign">MAYHEM MOTOR MART <span>OPEN 24/7</span></div>
@@ -1924,40 +1942,44 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
 })();
 </script><script>
 (()=>{
-const dock=document.createElement('div');dock.id='mayhemTopDock';
-const details=document.createElement('div');details.id='mayhemTopDetails';
-const parked=document.createElement('div');parked.id='mayhemParkedControls';parked.style.display='none';
-document.body.append(dock,details,parked);
-const groups=[
- {id:'hud',icon:'🏆',name:'Score and rider status',extra:['healthPanel']},
- {id:'mayhemRoadGuide',icon:'🧭',name:'Mileage and navigation'},
- {id:'horizonControls',icon:'🌅',name:'Custom sky'},
- {id:'mayhemPresets',icon:'🎛️',name:'Control layouts'},
- {id:'mayhemLayoutToggle',icon:'✥',name:'Wobble controls',action:true}
-];
-const nodes=new Map(),buttons=new Map();
-let active=null;
-for(const group of groups){
- const btn=document.createElement('button');btn.type='button';btn.textContent=group.icon;btn.title=group.name;btn.setAttribute('aria-label',group.name);btn.setAttribute('aria-expanded','false');dock.appendChild(btn);buttons.set(group.id,btn);
- btn.addEventListener('click',()=>{
-  if(group.action){document.getElementById(group.id)?.click();return}
-  const same=active===group.id;active=same?null:group.id;
-  for(const [id,b] of buttons)b.setAttribute('aria-expanded',String(id===active));
-  for(const node of [...details.children])parked.appendChild(node);
-  details.replaceChildren();
-  if(active){for(const n of nodes.get(active)||[])details.appendChild(n);details.classList.add('open')}
-  else details.classList.remove('open');
- });
-}
-function attach(){
+ const parked=document.createElement('div');parked.id='mayhemParkedControls';parked.style.display='none';
+ const left=document.createElement('div');left.id='mayhemLeftRail';left.className='mayhemRail';
+ const right=document.createElement('div');right.id='mayhemRightRail';right.className='mayhemRail';
+ document.body.append(parked,left,right);
+ const groups=[
+  {id:'hud',icon:'🏆',name:'Score and rider status',extra:['healthPanel'],side:'left'},
+  {id:'mayhemRoadGuide',icon:'🧭',name:'Mileage and navigation',side:'left'},
+  {id:'horizonControls',icon:'🌅',name:'Custom sky',side:'right'},
+  {id:'mayhemPresets',icon:'🎛️',name:'Control layouts',side:'right'},
+  {id:'mayhemLayoutToggle',icon:'✥',name:'Wobble controls',side:'right',action:true}
+ ];
+ const panels=new Map();
  for(const group of groups){
-  if(group.action||nodes.has(group.id))continue;
-  const node=document.getElementById(group.id);if(!node)continue;
-  const list=[node,...(group.extra||[]).map(id=>document.getElementById(id)).filter(Boolean)];
-  nodes.set(group.id,list);
-  for(const n of list){parked.appendChild(n);n.style.setProperty('visibility','visible');}
+  const rail=group.side==='left'?left:right;
+  const section=document.createElement('section');section.className='mayhemRailSection';
+  const button=document.createElement('button');button.type='button';button.className='mayhemRailButton';button.textContent=group.icon;button.title=group.name;button.setAttribute('aria-label',group.name);button.setAttribute('aria-expanded','false');
+  section.appendChild(button);
+  if(group.action){
+   button.addEventListener('click',()=>document.getElementById(group.id)?.click());
+  }else{
+   const panel=document.createElement('div');panel.className='mayhemRailPanel';panel.hidden=true;
+   section.appendChild(panel);panels.set(group.id,panel);
+   button.addEventListener('click',()=>{
+    const open=panel.hidden;panel.hidden=!open;button.setAttribute('aria-expanded',String(open));
+   });
+  }
+  rail.appendChild(section);
  }
-}
-attach();let tries=0;const watch=setInterval(()=>{attach();if(++tries>50)clearInterval(watch)},250);
+ function attach(){
+  for(const group of groups){
+   if(group.action)continue;
+   const panel=panels.get(group.id);if(panel.dataset.attached)return;
+   const node=document.getElementById(group.id);if(!node)continue;
+   const list=[node,...(group.extra||[]).map(id=>document.getElementById(id)).filter(Boolean)];
+   for(const n of list){panel.appendChild(n);n.style.setProperty('visibility','visible')}
+   panel.dataset.attached='true';
+  }
+ }
+ attach();let tries=0;const watch=setInterval(()=>{attach();if(++tries>50)clearInterval(watch)},250);
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V7</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V8</div></body></html>
