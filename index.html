@@ -253,8 +253,8 @@ body #mayhemTopDetails.open #mayhemRoadGuide{display:block!important}
 
 /* Splash isolation: gameplay controls remain mounted but are invisible until play begins. */
 body:not(.riding) .mayhemRail,body:not(.riding) #rideInventory,body:not(.riding) #radioToggle,body:not(.riding) #radioPanel,body:not(.riding) #musicToggle,body:not(.riding) #gameUpdateButton,body:not(.riding) #gameUpdateMessage,body:not(.riding) #pause,body:not(.riding) #mayhemTopDock,body:not(.riding) #mayhemTopDetails,body:not(.riding) #speedGauge,body:not(.riding) #gasGauge,body:not(.riding) #controls,body:not(.riding) #hud,body:not(.riding) #healthPanel,body:not(.riding) #mayhemRoadGuide,body:not(.riding) #horizonControls,body:not(.riding) #mayhemPresets{visibility:hidden!important;pointer-events:none!important}
-#overlay #play{opacity:0!important;transform:scale(.35);transition:none!important;animation:none!important;pointer-events:none}
-#overlay.mayhemLogoReady #play{animation:mayhemStartGrow .7s cubic-bezier(.16,1,.3,1) .1s both!important;pointer-events:auto}
+#overlay #play{opacity:0;transform:scale(.35);transition:none!important;pointer-events:none}
+#overlay.mayhemLogoReady #play{animation:mayhemStartGrow .7s cubic-bezier(.16,1,.3,1) both!important;pointer-events:auto}
 @keyframes mayhemStartGrow{0%{opacity:0;transform:scale(.35)}60%{opacity:1}82%{transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
 #overlay.mayhemGameOver #play{animation:none!important;opacity:1!important;transform:none!important;pointer-events:auto}
 
@@ -2050,11 +2050,11 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
    const blob=await response.blob();
    if(!blob.size)throw Error('Empty logo');
    const url=URL.createObjectURL(blob);
-   img.onload=()=>{host.classList.add('ready');img.classList.add('mayhemLogoArrive');progress.classList.add('finished');setTimeout(()=>document.getElementById('overlay').classList.add('mayhemLogoReady'),1200);URL.revokeObjectURL(url)};
+   img.onload=()=>{host.classList.add('ready');img.classList.add('mayhemLogoArrive');progress.classList.add('finished');img.addEventListener('animationend',()=>document.getElementById('overlay').classList.add('mayhemLogoReady'),{once:true});if(matchMedia('(prefers-reduced-motion: reduce)').matches)document.getElementById('overlay').classList.add('mayhemLogoReady');URL.revokeObjectURL(url)};
    img.onerror=()=>{URL.revokeObjectURL(url);load()};
    img.src=url;
   }catch(error){console.warn('Logo source unavailable',source,error);load()}
  }
  load();
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V15</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V16</div></body></html>
