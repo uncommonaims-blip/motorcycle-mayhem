@@ -261,6 +261,10 @@ body:not(.riding) .mayhemRail,body:not(.riding) #rideInventory,body:not(.riding)
 /* Hide radio only on splash; preserve all radio behavior while riding. */
 body:not(.riding) #radioButton{visibility:hidden!important;pointer-events:none!important}
 body:not(.riding) #topToolsToggle{visibility:visible!important;pointer-events:auto!important}
+
+/* The hamburger menu retains every option on the splash, including Update Game. */
+body:not(.riding) #topToolsPanel.open #gameUpdateButton,body:not(.riding) #topToolsPanel.open #musicToggle,body:not(.riding) #topToolsPanel.open #viewToggle{visibility:visible!important;pointer-events:auto!important}
+body:not(.riding) #topToolsPanel.open{visibility:visible!important;pointer-events:auto!important}
 </style></head><body><div id="alienControls"><button id="alienTransform" type="button">🛸 TRANSFORM</button><button id="alienFire" type="button" aria-label="Fire photon" title="Hold to fire photons"><svg viewBox="0 0 100 40" width="88" height="35" aria-hidden="true" style="display:block;pointer-events:none"><path d="M21 2 L9 22 H23 L17 38 L39 15 H25 L33 2Z" fill="#f9ed72" stroke="#fff6c5" stroke-width="1.5"/><text x="42" y="26" fill="currentColor" font-size="14" font-weight="900" font-family="Arial,sans-serif">PHOTON</text></svg></button><button id="alienUp" type="button">⬆ ASCEND</button></div><div id="rushBanner" aria-live="polite"></div><div id="nosStreaks" aria-hidden="true"></div><div id="store" aria-label="Service station shop" style="display:none">
  <div class="shop-scene">
   <div class="shop-sign">MAYHEM MOTOR MART <span>OPEN 24/7</span></div>
@@ -2053,4 +2057,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  }
  load();
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V14</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V15</div></body></html>
