@@ -219,6 +219,14 @@ body #mayhemTopDetails.open #mayhemRoadGuide{display:block!important}
 .mayhemRailPanel #hud br{display:block!important}
 .mayhemRailPanel #hud #combo,.mayhemRailPanel #hud #wanted,.mayhemRailPanel #hud #oilRead{display:inline!important}
 .mayhemRailPanel button{font-size:11px!important;padding:5px!important}
+
+/* Side-rail contents take precedence over legacy collapsed top-dock rules. */
+body.riding .mayhemRailPanel:not([hidden]) > #hud,
+body.riding .mayhemRailPanel:not([hidden]) > #healthPanel,
+body.riding .mayhemRailPanel:not([hidden]) > #mayhemRoadGuide{display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;pointer-events:auto!important}
+body.riding .mayhemRailPanel:not([hidden]) > #horizonControls,
+body.riding .mayhemRailPanel:not([hidden]) > #mayhemPresets{display:flex!important;visibility:visible!important;opacity:1!important;max-height:none!important;pointer-events:auto!important}
+body.riding .mayhemRailPanel:not([hidden]) > * > *{visibility:visible!important;opacity:1!important}
 #mayhemVersion{position:fixed!important;bottom:calc(2px + env(safe-area-inset-bottom,0px))!important;right:3px!important;left:auto!important;top:auto!important;z-index:2147483647!important;display:block!important;visibility:visible!important;opacity:1!important;font:900 16px/1 system-ui!important;letter-spacing:.4px!important;color:#fff!important;background:#13233af2!important;border:2px solid #ffcf4c!important;border-radius:7px!important;padding:5px 7px!important;text-shadow:0 1px 3px #000!important;pointer-events:none!important}
 #overlay h1{font-family:Impact,'Arial Black',system-ui,sans-serif!important;font-weight:1000!important;font-style:italic!important;letter-spacing:.025em!important;line-height:.9!important;font-size:clamp(48px,12vw,92px)!important;color:#ffdd48!important;-webkit-text-stroke:1.2px #45190d;text-shadow:3px 3px 0 #d94a17,6px 6px 0 #5c1a1b,0 8px 20px #000c!important;transform:skew(-5deg);margin:12px auto 22px!important;max-width:95vw}
 
@@ -2092,4 +2100,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  }
  load();
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V19</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V20</div></body></html>
