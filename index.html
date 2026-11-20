@@ -266,6 +266,21 @@ body.mayhem-in-shop #healthPanel{visibility:hidden!important;pointer-events:none
 .mayhemGripThumb{position:absolute;width:49px;height:49px;border-radius:50%;background:linear-gradient(135deg,#546d82,#172c40);border:3px solid #ffd24a;display:grid;place-items:center;color:#fff;font-size:24px;font-weight:bold;box-shadow:0 3px 9px #0008;will-change:transform}
 .mayhemNosMount{position:absolute;left:50%;bottom:calc(285px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto}
 #mayhemHandlebars .mayhemNosMount [data-key=nos]{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;transform:none!important;width:68px!important;height:68px!important;border-radius:50%!important;background:radial-gradient(circle at 35% 25%,#48b9ff,#0750ad 70%,#082c6c)!important;border:3px solid #d9f4ff!important;box-shadow:0 0 0 4px #153c67,0 5px 15px #000b!important;color:#fff!important;font:bold 14px system-ui!important;white-space:normal!important;touch-action:none}
+/* V25: bottom-docked unified cockpit, above the device safe area. */
+#mayhemHandlebars{--cockpit-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+#mayhemHandlebars .mayhemGrip,#mayhemHandlebars .mayhemBarFrame{bottom:var(--cockpit-bottom)!important}
+#mayhemHandlebars .mayhemNosMount{bottom:calc(55px + env(safe-area-inset-bottom,0px))!important}
+#mayhemHandlebars .mayhemBarFrame{left:4px;right:4px}
+#mayhemHandlebars .mayhemCockpitControls{position:absolute;left:70px;right:70px;bottom:calc(12px + env(safe-area-inset-bottom,0px));height:154px;pointer-events:none}
+#mayhemHandlebars .mayhemCockpitLeft,#mayhemHandlebars .mayhemCockpitRight{position:absolute;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:8px;height:100%;pointer-events:none}
+#mayhemHandlebars .mayhemCockpitLeft{left:0}#mayhemHandlebars .mayhemCockpitRight{right:0}
+#mayhemHandlebars .mayhemDockedControl{position:relative!important;inset:auto!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;transform:none!important;display:block!important;width:clamp(43px,12vw,61px)!important;height:clamp(43px,12vw,61px)!important;min-width:0!important;min-height:0!important;border-radius:16px!important;font-size:clamp(11px,2.8vw,15px)!important;background:#223b52e8!important;border:2px solid #8ba9c0!important;box-shadow:0 2px 8px #0008!important;pointer-events:auto!important;touch-action:none}
+#mayhemHandlebars .mayhemDockedControl:active{background:#ffd24a!important;color:#10243c!important}
+#mayhemHandlebars .mayhemCockpitRight [data-key=gas]{background:#226b49e8!important;border-color:#8df2b4!important}
+#mayhemHandlebars .mayhemCockpitRight [data-key=brake]{background:#6e343be8!important;border-color:#ffafb2!important}
+#mayhemHandlebars .mayhemCockpitLeft #dropOil{font-size:10px!important}
+@media(max-width:420px){#mayhemHandlebars .mayhemCockpitControls{left:65px;right:65px}#mayhemHandlebars .mayhemDockedControl{width:43px!important;height:43px!important}#mayhemHandlebars .mayhemCockpitLeft,#mayhemHandlebars .mayhemCockpitRight{gap:7px}}
+body:not(.riding) #mayhemHandlebars .mayhemDockedControl,body.mayhem-in-shop #mayhemHandlebars .mayhemDockedControl,body.mayhem-alien-flight #mayhemHandlebars .mayhemDockedControl{pointer-events:none!important}
 body:not(.riding) #mayhemHandlebars,body.mayhem-in-shop #mayhemHandlebars,body.mayhem-alien-flight #mayhemHandlebars{visibility:hidden!important;pointer-events:none!important}
 body:not(.riding) .mayhemGrip,body.mayhem-in-shop .mayhemGrip,body.mayhem-alien-flight .mayhemGrip{pointer-events:none!important}
 body.riding #controls [data-key=left],body.riding #controls [data-key=right]{visibility:hidden!important;pointer-events:none!important}
@@ -1296,7 +1311,7 @@ let fuelStrandedTime=0;function reset(){resetHandlebars();for(const p of wildPic
 $('howTo').onclick=()=>{$('overlay').classList.toggle('show-help');$('howTo').textContent=$('overlay').classList.contains('show-help')?'HIDE INSTRUCTIONS':'HOW TO PLAY'};$('play').onclick=reset;$('introShop').onclick=()=>openStore(true);$('pause').onclick=()=>{if(playing){paused=!paused;$('pause').textContent=paused?'▶':'Ⅱ';if(paused)suspendGameAudio();else activateSound();syncMotoMusic()}};
 const mapping={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'gas',ArrowDown:'brake',a:'left',d:'right',w:'gas',s:'brake', ' ':'wheelie',Shift:'nos'};addEventListener('keydown',e=>{if(mapping[e.key]){if(mapping[e.key]==='nos'){if(!e.repeat)triggerNos()}else keys[mapping[e.key]]=true;e.preventDefault()}});addEventListener('keyup',e=>{if(mapping[e.key])keys[mapping[e.key]]=false});document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('contextmenu',e=>e.preventDefault());b.addEventListener('selectstart',e=>e.preventDefault());b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='nos'){if(!keys.nos)triggerNos()}else keys[k]=true;b.setPointerCapture(e.pointerId)});for(let n of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(n,()=>keys[k]=false)});
 /* Double-tap any gameplay control to reposition it; tap again to lock. */
-const movableControls=()=>[...document.querySelectorAll('#controls button,#alienControls button,#stashToggle,#stashExtras button,#drinkBeer,#eatMushroom,#musicToggle,#pause,#dropOil,#viewToggle,#radioButton,#hud,#healthPanel,#speedGauge,#starHud,#musicToggle,#rushBanner,#fuelRead,#oilRead')].filter(el=>!el.closest('#overlay,#store,#miniGame'));
+const movableControls=()=>[...document.querySelectorAll('#controls button,#alienControls button,#stashToggle,#stashExtras button,#drinkBeer,#eatMushroom,#musicToggle,#pause,#dropOil,#viewToggle,#radioButton,#hud,#healthPanel,#speedGauge,#starHud,#musicToggle,#rushBanner,#fuelRead,#oilRead')].filter(el=>!el.closest('#overlay,#store,#miniGame,#mayhemHandlebars'));
 const controlPositionsKey='mayhem-control-positions-v1';const controlPresetsKey='mayhem-control-presets-v1';
 let controlPositions={};try{controlPositions=JSON.parse(localStorage.getItem(controlPositionsKey)||'{}')||{}}catch{}
 let movingControl=null,controlDrag=null,lastControlTap=new WeakMap(),wobbleTimeout=null;
@@ -1354,6 +1369,14 @@ handlebars.innerHTML='<div class="mayhemBarFrame" aria-hidden="true"><span class
 document.body.appendChild(handlebars);
 const nosButton=document.querySelector('#controls [data-key="nos"]');
 if(nosButton){handlebars.querySelector('.mayhemNosMount').appendChild(nosButton);nosButton.setAttribute('aria-label','Nitrous oxide boost');}
+// Keep the original game buttons and their pointer listeners, but dock them in one cockpit.
+const cockpitControls=document.createElement('div');cockpitControls.className='mayhemCockpitControls';
+cockpitControls.innerHTML='<div class="mayhemCockpitLeft"></div><div class="mayhemCockpitRight"></div>';
+handlebars.appendChild(cockpitControls);
+for(const [selector,side] of [['[data-key="wheelie"]','left'],['#dropOil','left'],['[data-key="brake"]','right'],['[data-key="gas"]','right']]){
+ const control=document.querySelector('#controls '+selector);
+ if(control){cockpitControls.querySelector('.mayhemCockpit'+(side==='left'?'Left':'Right')).appendChild(control);control.classList.add('mayhemDockedControl');}
+}
 const grips=[...handlebars.querySelectorAll('.mayhemGrip')];const gripState=new Map();let handlebarSteer=0;
 function paintHandlebars(){for(const grip of grips){const direction=grip.dataset.side==='left'?1:-1;const displacement=handlebarSteer*direction;grip.querySelector('.mayhemGripThumb').style.transform='translateY('+(displacement*grip.clientHeight*.37)+'px)';grip.setAttribute('aria-valuenow',String(Math.round(displacement*100)));}}
 function resetHandlebars(){gripState.clear();handlebarSteer=0;paintHandlebars()}
@@ -2144,4 +2167,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  img.src=new URL('assets/moto-logo.jpg',document.baseURI).href;
  if(img.complete&&img.naturalWidth){host?.classList.add('ready');img.classList.add('mayhemLogoArrive')}
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V24</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V25</div></body></html>
