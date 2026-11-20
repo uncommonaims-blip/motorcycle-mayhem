@@ -1374,7 +1374,7 @@ installMovableControls();
 const movableObserver=new MutationObserver(()=>installMovableControls());movableObserver.observe(document.body,{childList:true,subtree:true});
 // Dual-sided virtual handlebars: pull either grip vertically to steer.
 const handlebars=document.createElement('div');handlebars.id='mayhemHandlebars';
-handlebars.innerHTML='<div class="mayhemBarFrame" aria-hidden="true"><span class="mayhemBarLeft"></span><span class="mayhemBarStem"></span><span class="mayhemBarRight"></span><span class="mayhemBrakeLabel">BRAKE</span><span class="mayhemThrottleLabel">THROTTLE</span></div><div class="mayhemGrip" data-side="left" role="slider" tabindex="0" aria-label="Left handlebar, drag up to steer left" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▲</span></div><div class="mayhemGrip" data-side="right" role="slider" tabindex="0" aria-label="Right handlebar, drag down to steer left" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▼</span></div><div class="mayhemNosMount"></div>';
+handlebars.innerHTML='<div class="mayhemBarFrame" aria-hidden="true"><span class="mayhemBarLeft"></span><span class="mayhemBarStem"></span><span class="mayhemBarRight"></span><span class="mayhemBrakeLabel">BRAKE</span><span class="mayhemThrottleLabel">THROTTLE</span></div><div class="mayhemGrip" data-side="left" role="slider" tabindex="0" aria-label="Left handlebar, pull down to steer left" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▲</span></div><div class="mayhemGrip" data-side="right" role="slider" tabindex="0" aria-label="Right handlebar, pull down to steer right" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▼</span></div><div class="mayhemNosMount"></div>';
 document.body.appendChild(handlebars);
 const nosButton=document.querySelector('#controls [data-key="nos"]');
 if(nosButton){handlebars.querySelector('.mayhemNosMount').appendChild(nosButton);nosButton.setAttribute('aria-label','Nitrous oxide boost');}
@@ -1390,13 +1390,13 @@ const grips=[...handlebars.querySelectorAll('.mayhemGrip')];const gripState=new 
 function paintHandlebars(){for(const grip of grips){const direction=grip.dataset.side==='left'?1:-1;const displacement=handlebarSteer*direction;grip.querySelector('.mayhemGripThumb').style.transform='translateY('+(displacement*grip.clientHeight*.37)+'px)';grip.setAttribute('aria-valuenow',String(Math.round(displacement*100)));}}
 function resetHandlebars(){gripState.clear();handlebarSteer=0;paintHandlebars()}
 function updateHandlebars(){if(gripState.size){handlebarSteer=[...gripState.values()].reduce((sum,v)=>sum+v,0)/gripState.size}else handlebarSteer=0;paintHandlebars()}
-function setGrip(grip,id,y){const rect=grip.getBoundingClientRect();const amount=Math.max(-1,Math.min(1,(y-(rect.top+rect.height/2))/(rect.height*.37)));gripState.set(id,amount*(grip.dataset.side==='left'?1:-1));updateHandlebars()}
+function setGrip(grip,id,y){const rect=grip.getBoundingClientRect();const amount=Math.max(-1,Math.min(1,(y-(rect.top+rect.height/2))/(rect.height*.37)));gripState.set(id,amount*(grip.dataset.side==='left'?-1:1));updateHandlebars()}
 for(const grip of grips){
  grip.addEventListener('pointerdown',e=>{if(!playing||paused||storeOpen||alienHover)return;e.preventDefault();grip.setPointerCapture(e.pointerId);setGrip(grip,e.pointerId,e.clientY)});
  grip.addEventListener('pointermove',e=>{if(gripState.has(e.pointerId)){e.preventDefault();setGrip(grip,e.pointerId,e.clientY)}});
  const release=e=>{if(gripState.delete(e.pointerId))updateHandlebars()};
  for(const eventName of ['pointerup','pointercancel','lostpointercapture'])grip.addEventListener(eventName,release);
- grip.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();gripState.set('keyboard-'+grip.dataset.side,(e.key==='ArrowDown'?1:-1)*(grip.dataset.side==='left'?1:-1));updateHandlebars()}});
+ grip.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();gripState.set('keyboard-'+grip.dataset.side,(e.key==='ArrowDown'?1:-1)*(grip.dataset.side==='left'?-1:1));updateHandlebars()}});
  grip.addEventListener('keyup',()=>{gripState.delete('keyboard-'+grip.dataset.side);updateHandlebars()});
 }
 window.addEventListener('blur',resetHandlebars);
@@ -2177,4 +2177,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  img.src=new URL('assets/moto-logo.jpg',document.baseURI).href;
  if(img.complete&&img.naturalWidth){host?.classList.add('ready');img.classList.add('mayhemLogoArrive')}
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V26</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V27</div></body></html>
