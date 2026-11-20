@@ -2124,26 +2124,24 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
 })();
 </script><script>
 (()=>{
+ const overlay=document.getElementById('overlay');
  const img=document.getElementById('mayhemSplashArtwork');
  const host=document.getElementById('mayhemSplashLogo');
  const progress=document.getElementById('mayhemSplashProgress');
- const path='assets/moto-logo.jpg';
- const sources=[new URL(path+'?logo=v11',document.baseURI).href,'https://raw.githubusercontent.com/uncommonaims-blip/motorcycle-mayhem/main/'+path+'?logo=v11'];
- let next=0;
- async function load(){
-  if(next>=sources.length){console.error('Moto logo unavailable from both sources');document.getElementById('overlay').classList.add('mayhemLogoReady');return}
-  const source=sources[next++];
-  try{
-   const response=await fetch(source,{cache:'no-store'});
-   if(!response.ok)throw Error('HTTP '+response.status);
-   const blob=await response.blob();
-   if(!blob.size)throw Error('Empty logo');
-   const url=URL.createObjectURL(blob);
-   img.onload=()=>{host.classList.add('ready');img.classList.add('mayhemLogoArrive');progress.classList.add('finished');img.addEventListener('animationend',()=>document.getElementById('overlay').classList.add('mayhemLogoReady'),{once:true});if(matchMedia('(prefers-reduced-motion: reduce)').matches)document.getElementById('overlay').classList.add('mayhemLogoReady');URL.revokeObjectURL(url)};
-   img.onerror=()=>{URL.revokeObjectURL(url);load()};
-   img.src=url;
-  }catch(error){console.warn('Logo source unavailable',source,error);load()}
- }
- load();
+ let ready=false;
+ const finish=()=>{if(ready)return;ready=true;progress?.classList.add('finished');overlay?.classList.add('mayhemLogoReady')};
+ // Never block the START button on a missing image, a failed fetch or an animation event.
+ const timeout=setTimeout(finish,2200);
+ if(!img){clearTimeout(timeout);finish();return}
+ img.addEventListener('load',()=>{
+  host?.classList.add('ready');
+  img.classList.add('mayhemLogoArrive');
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){clearTimeout(timeout);finish()}
+  else img.addEventListener('animationend',()=>{clearTimeout(timeout);finish()},{once:true});
+ },{once:true});
+ img.addEventListener('error',()=>{console.warn('Splash logo unavailable; continuing startup');clearTimeout(timeout);finish()},{once:true});
+ // Use the locally bundled logo directly, avoiding two blocking network fetches and blob URLs.
+ img.src=new URL('assets/moto-logo.jpg',document.baseURI).href;
+ if(img.complete&&img.naturalWidth){host?.classList.add('ready');img.classList.add('mayhemLogoArrive')}
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V23</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V24</div></body></html>
