@@ -251,12 +251,21 @@ body.mayhem-in-shop #mayhemTopDetails,
 body.mayhem-in-shop #hud,
 body.mayhem-in-shop #healthPanel{visibility:hidden!important;pointer-events:none!important}
 
-/* Thumb-friendly motorcycle handlebars, mirrored on both edges. */
+/* Connected motorcycle cockpit: opposed grips, faint brake/throttle and central NOS. */
 #mayhemHandlebars{position:fixed;inset:0;z-index:35;pointer-events:none}
-.mayhemGrip{position:absolute;bottom:calc(245px + env(safe-area-inset-bottom,0px));height:156px;width:56px;border-radius:30px;background:#172a3dbd;border:2px solid #e0e7edaa;box-shadow:0 3px 12px #0008;pointer-events:auto;touch-action:none;display:flex;justify-content:center;align-items:center}
+.mayhemBarFrame{position:absolute;left:7px;right:7px;bottom:calc(245px + env(safe-area-inset-bottom,0px));height:156px;opacity:.36;pointer-events:none}
+.mayhemBarLeft,.mayhemBarRight{position:absolute;top:50%;height:9px;width:calc(50% - 25px);background:linear-gradient(#aab9c4,#354554);border:1px solid #e0e9ef;border-radius:12px}
+.mayhemBarLeft{left:15px;transform:rotate(10deg);transform-origin:right center}
+.mayhemBarRight{right:15px;transform:rotate(-10deg);transform-origin:left center}
+.mayhemBarStem{position:absolute;left:calc(50% - 13px);top:calc(50% - 13px);width:26px;height:26px;border:5px solid #b8c9d3;background:#263748;border-radius:50%}
+.mayhemBrakeLabel,.mayhemThrottleLabel{position:absolute;top:calc(50% + 17px);font:bold 10px system-ui;letter-spacing:1px;color:#e3ebf2}
+.mayhemBrakeLabel{left:65px}.mayhemThrottleLabel{right:65px}
+.mayhemGrip{position:absolute;bottom:calc(245px + env(safe-area-inset-bottom,0px));height:156px;width:56px;border-radius:30px;background:repeating-linear-gradient(0deg,#182938ed 0 9px,#30475aed 10px 13px);border:2px solid #b6c7d5;box-shadow:0 3px 12px #0008;pointer-events:auto;touch-action:none;display:flex;justify-content:center;align-items:center}
 .mayhemGrip[data-side=left]{left:7px}.mayhemGrip[data-side=right]{right:7px}
 .mayhemGripTrack{height:110px;width:8px;background:#b9cbd5a0;border-radius:12px}
 .mayhemGripThumb{position:absolute;width:49px;height:49px;border-radius:50%;background:linear-gradient(135deg,#546d82,#172c40);border:3px solid #ffd24a;display:grid;place-items:center;color:#fff;font-size:24px;font-weight:bold;box-shadow:0 3px 9px #0008;will-change:transform}
+.mayhemNosMount{position:absolute;left:50%;bottom:calc(285px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto}
+#mayhemHandlebars .mayhemNosMount [data-key=nos]{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;transform:none!important;width:68px!important;height:68px!important;border-radius:50%!important;background:radial-gradient(circle at 35% 25%,#48b9ff,#0750ad 70%,#082c6c)!important;border:3px solid #d9f4ff!important;box-shadow:0 0 0 4px #153c67,0 5px 15px #000b!important;color:#fff!important;font:bold 14px system-ui!important;white-space:normal!important;touch-action:none}
 body:not(.riding) #mayhemHandlebars,body.mayhem-in-shop #mayhemHandlebars,body.mayhem-alien-flight #mayhemHandlebars{visibility:hidden!important;pointer-events:none!important}
 body:not(.riding) .mayhemGrip,body.mayhem-in-shop .mayhemGrip,body.mayhem-alien-flight .mayhemGrip{pointer-events:none!important}
 body.riding #controls [data-key=left],body.riding #controls [data-key=right]{visibility:hidden!important;pointer-events:none!important}
@@ -1340,18 +1349,23 @@ mayhemLayoutButton.addEventListener('click',()=>mayhemSetLayoutMode(!mayhemLayou
 installMovableControls();
 const movableObserver=new MutationObserver(()=>installMovableControls());movableObserver.observe(document.body,{childList:true,subtree:true});
 // Dual-sided virtual handlebars: pull either grip vertically to steer.
-const handlebars=document.createElement('div');handlebars.id='mayhemHandlebars';handlebars.innerHTML='<div class="mayhemGrip" data-side="left" role="slider" tabindex="0" aria-label="Left handlebar steering" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">↕</span></div><div class="mayhemGrip" data-side="right" role="slider" tabindex="0" aria-label="Right handlebar steering" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">↕</span></div>';
+const handlebars=document.createElement('div');handlebars.id='mayhemHandlebars';
+handlebars.innerHTML='<div class="mayhemBarFrame" aria-hidden="true"><span class="mayhemBarLeft"></span><span class="mayhemBarStem"></span><span class="mayhemBarRight"></span><span class="mayhemBrakeLabel">BRAKE</span><span class="mayhemThrottleLabel">THROTTLE</span></div><div class="mayhemGrip" data-side="left" role="slider" tabindex="0" aria-label="Left handlebar, drag up to steer left" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▲</span></div><div class="mayhemGrip" data-side="right" role="slider" tabindex="0" aria-label="Right handlebar, drag down to steer left" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="mayhemGripTrack"></span><span class="mayhemGripThumb">▼</span></div><div class="mayhemNosMount"></div>';
 document.body.appendChild(handlebars);
-const gripState=new Map();let handlebarSteer=0;
-function resetHandlebars(){gripState.clear();handlebarSteer=0;for(const grip of handlebars.children){grip.querySelector('.mayhemGripThumb').style.transform='translateY(0px)';grip.setAttribute('aria-valuenow','0')}}
-function setGrip(grip,id,y){const rect=grip.getBoundingClientRect();const center=rect.top+rect.height/2;const amount=Math.max(-1,Math.min(1,(y-center)/(rect.height*.37)));gripState.set(id,{grip,amount});grip.querySelector('.mayhemGripThumb').style.transform='translateY('+(amount*rect.height*.37)+'px)';grip.setAttribute('aria-valuenow',String(Math.round(amount*100)));handlebarSteer=[...gripState.values()].reduce((sum,v)=>sum+v.amount,0)/gripState.size;}
-for(const grip of handlebars.children){
+const nosButton=document.querySelector('#controls [data-key="nos"]');
+if(nosButton){handlebars.querySelector('.mayhemNosMount').appendChild(nosButton);nosButton.setAttribute('aria-label','Nitrous oxide boost');}
+const grips=[...handlebars.querySelectorAll('.mayhemGrip')];const gripState=new Map();let handlebarSteer=0;
+function paintHandlebars(){for(const grip of grips){const direction=grip.dataset.side==='left'?1:-1;const displacement=handlebarSteer*direction;grip.querySelector('.mayhemGripThumb').style.transform='translateY('+(displacement*grip.clientHeight*.37)+'px)';grip.setAttribute('aria-valuenow',String(Math.round(displacement*100)));}}
+function resetHandlebars(){gripState.clear();handlebarSteer=0;paintHandlebars()}
+function updateHandlebars(){if(gripState.size){handlebarSteer=[...gripState.values()].reduce((sum,v)=>sum+v,0)/gripState.size}else handlebarSteer=0;paintHandlebars()}
+function setGrip(grip,id,y){const rect=grip.getBoundingClientRect();const amount=Math.max(-1,Math.min(1,(y-(rect.top+rect.height/2))/(rect.height*.37)));gripState.set(id,amount*(grip.dataset.side==='left'?1:-1));updateHandlebars()}
+for(const grip of grips){
  grip.addEventListener('pointerdown',e=>{if(!playing||paused||storeOpen||alienHover)return;e.preventDefault();grip.setPointerCapture(e.pointerId);setGrip(grip,e.pointerId,e.clientY)});
  grip.addEventListener('pointermove',e=>{if(gripState.has(e.pointerId)){e.preventDefault();setGrip(grip,e.pointerId,e.clientY)}});
- const release=e=>{if(!gripState.has(e.pointerId))return;gripState.delete(e.pointerId);if(gripState.size){handlebarSteer=[...gripState.values()].reduce((sum,v)=>sum+v.amount,0)/gripState.size}else handlebarSteer=0;grip.querySelector('.mayhemGripThumb').style.transform='translateY(0px)';grip.setAttribute('aria-valuenow','0')};
+ const release=e=>{if(gripState.delete(e.pointerId))updateHandlebars()};
  for(const eventName of ['pointerup','pointercancel','lostpointercapture'])grip.addEventListener(eventName,release);
- grip.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();handlebarSteer=e.key==='ArrowDown'?1:-1}});
- grip.addEventListener('keyup',()=>{handlebarSteer=0});
+ grip.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();gripState.set('keyboard-'+grip.dataset.side,(e.key==='ArrowDown'?1:-1)*(grip.dataset.side==='left'?1:-1));updateHandlebars()}});
+ grip.addEventListener('keyup',()=>{gripState.delete('keyboard-'+grip.dataset.side);updateHandlebars()});
 }
 window.addEventListener('blur',resetHandlebars);
 let nosEscapeDistance=0;
@@ -2132,4 +2146,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  }
  load();
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V22</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V23</div></body></html>
