@@ -34,5 +34,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: www
+      # Give GitHub's artifact metadata API time to index the newly uploaded Pages artifact.
+      # Retry by starting a NEW workflow run, not by re-running this publish job,
+      # because a job retry uploads a second github-pages artifact into the same run.
+      - name: Wait for Pages artifact indexing
+        run: sleep 20
       - id: deployment
         uses: actions/deploy-pages@v4
