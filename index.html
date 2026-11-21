@@ -846,7 +846,7 @@ function updateCaveRide(dt){
   caveCockpit.style.opacity=closestDanger<5?'1':'.85';
   caveCockpit.querySelector('.caveHeadlamp').style.color=closestDanger<5?'#ffad63':'#fff7bd';
   if(ride.time>10*CAVE_LENGTH_MULTIPLIER||ride.tunnel.position.z>125*CAVE_LENGTH_MULTIPLIER){
-   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveLampButton.style.display='none';caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null}document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'
+   ride.tunnel.visible=false;ride.mountain.visible=true;caveRide=null;caveLampButton.style.display='none';caveCooldown=8;caveCockpit.style.display='none';if(cavePreviousPOV!==null){firstPerson=cavePreviousPOV;cavePreviousPOV=null}/* Immediately restore the outdoor camera; do not lerp from the deep-cave camera over multiple seconds. */if(!firstPerson){const followX=bike.position.x*.48;camera.position.set(followX,15,35);camera.lookAt(bike.position.x*.65,0,-29)}else{camera.position.set(bike.position.x,bike.position.y+2.85,bike.position.z-.1);camera.lookAt(bike.position.x,bike.position.y+2.65,bike.position.z-45)}document.getElementById('viewToggle').textContent=firstPerson?'🎥 CHASE':'👁 POV'
    popup('🏔️ CAVE EXIT!')
   }
   return;
@@ -2183,4 +2183,4 @@ const toggle=()=>hud.classList.toggle('expanded');hud.addEventListener('click',t
  img.src=new URL('assets/moto-logo.jpg',document.baseURI).href;
  if(img.complete&&img.naturalWidth){host?.classList.add('ready');img.classList.add('mayhemLogoArrive')}
 })();
-</script><div id="mayhemVersion" aria-label="Game version">V28</div></body></html>
+</script><div id="mayhemVersion" aria-label="Game version">V29</div></body></html>
