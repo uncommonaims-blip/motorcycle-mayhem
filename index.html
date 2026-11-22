@@ -1870,7 +1870,7 @@ function ensureSaturnBikeView(){
    const vertices=[],indices=[],steps=110;
    const offset=j/19,offsetNext=(j+.96)/19;
    for(let i=0;i<=steps;i++){
-    const d=i*1.55,angle=-d/orbitalRadius;
+    const d=-46+i*2.05,angle=-d/orbitalRadius;
     for(const side of [offset,offsetNext]){const radius=orbitalRadius+side*22;vertices.push(orbitalCenterX+radius*Math.cos(angle),Math.sin(i*.11+j)*.014,radius*Math.sin(angle))}
    }
    for(let i=0;i<steps;i++){const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2)}
@@ -1879,7 +1879,7 @@ function ensureSaturnBikeView(){
    ringGroup.add(new T.Mesh(geo,mat));
   }
   // Massive low-poly Saturn with atmospheric banding and a broad tilted ring halo.
-  const planet=new T.Group();planet.position.set(-111,-8,0);miniScene.add(planet);
+  const planet=new T.Group();planet.position.set(-58,-8,-96);miniScene.add(planet);
   const globe=new T.Mesh(new T.SphereGeometry(58,40,24),new T.MeshStandardMaterial({color:0xc99e75,roughness:1}));planet.add(globe);
   for(let j=0;j<12;j++){const lat=(j/11-.5)*Math.PI*.87,rr=58*Math.cos(lat),yy=58*Math.sin(lat);
    const stripe=new T.Mesh(new T.TorusGeometry(rr,.6+(j%3)*.5,4,72),new T.MeshBasicMaterial({color:shades[j%shades.length],transparent:true,opacity:.55}));stripe.rotation.x=Math.PI/2;stripe.position.y=yy;planet.add(stripe)}
@@ -1889,7 +1889,7 @@ function ensureSaturnBikeView(){
   miniScene.add(new T.Points(starsGeo,new T.PointsMaterial({color:0xd9e8ff,size:1.15,sizeAttenuation:false})));
   // Ice chunks move along the curved ring surface and are reused each frame.
   const chunks=[];const iceGeo=new T.IcosahedronGeometry(1,0);
-  for(let i=0;i<38;i++){const mesh=new T.Mesh(iceGeo,new T.MeshStandardMaterial({color:i%3?0xb6d9eb:0xe6e6db,flatShading:true,roughness:.6}));mesh.userData.distance=Math.random()*170;mesh.userData.lane=Math.random()*2-1;mesh.scale.setScalar(.15+Math.random()*.55);ringGroup.add(mesh);chunks.push(mesh)}
+  for(let i=0;i<38;i++){const mesh=new T.Mesh(iceGeo,new T.MeshStandardMaterial({color:i%3?0xb6d9eb:0xe6e6db,flatShading:true,roughness:.6}));mesh.userData.distance=12+Math.random()*145;mesh.userData.lane=Math.random()*2-1;mesh.userData.hit=false;mesh.scale.setScalar(.15+Math.random()*.55);ringGroup.add(mesh);chunks.push(mesh)}
   saturnBikeView={canvas,model,miniScene,cameraMini,miniRenderer,orbit,orbitalRadius,orbitalCenterX,ringGroup,chunks,renderWidth:0,renderHeight:0};
  }catch(err){console.warn('Saturn 3D environment unavailable',err);saturnPanel.querySelector('#saturnBikeAvatar')?.remove()}
  return saturnBikeView;
@@ -1900,9 +1900,9 @@ function drawSaturnBikeAvatar(r,dt){
  if(w!==v.renderWidth||h!==v.renderHeight){v.renderWidth=w;v.renderHeight=h;v.cameraMini.aspect=w/Math.max(1,h);v.cameraMini.updateProjectionMatrix();v.miniRenderer.setSize(w,h,false)}
  v.model.position.set(r.lane*6.2,-.7+Math.sin(r.time*9)*.025,4);
  v.model.rotation.set(0,-.15,-r.lane*.15);
- v.cameraMini.position.set(r.lane*1.4,5.3,17);
- v.cameraMini.lookAt(-21,0,-63);
- for(const chunk of v.chunks){chunk.userData.distance-=dt*24;if(chunk.userData.distance<0)chunk.userData.distance=170;const d=chunk.userData.distance,angle=-d/v.orbitalRadius,radius=v.orbitalRadius+chunk.userData.lane*21;chunk.position.set(v.orbitalCenterX+radius*Math.cos(angle),.18,radius*Math.sin(angle))}
+ v.cameraMini.position.set(r.lane*1.4,6.8,23);
+ v.cameraMini.lookAt(-31,0,-65);
+ for(const chunk of v.chunks){chunk.userData.distance-=dt*24;if(chunk.userData.distance< -12){chunk.userData.distance=150+Math.random()*25;chunk.userData.hit=false;chunk.visible=true}const d=chunk.userData.distance,angle=-d/v.orbitalRadius,radius=v.orbitalRadius+chunk.userData.lane*21;chunk.position.set(v.orbitalCenterX+radius*Math.cos(angle),.18,radius*Math.sin(angle));if(!chunk.userData.hit&&d<8&&d>1&&Math.abs(chunk.userData.lane-r.lane)<.19){chunk.userData.hit=true;chunk.visible=false;r.health--;popup('🧊 ICE COLLISION — SHIELD LOST')}}
  v.miniRenderer.render(v.miniScene,v.cameraMini);
 }
 function endSaturnRace(completed){
@@ -1913,12 +1913,20 @@ function endSaturnRace(completed){
  popup((completed?'🪐 SATURN RING FINISH! ':'🛸 BACK TO EARTH! ')+'+'+reward+' CREDITS');
 }
 saturnPanel.querySelector('#saturnExit').onclick=()=>endSaturnRace(false);
+const saturnFire=document.createElement('button');saturnFire.id='saturnPhoton';saturnFire.type='button';saturnFire.textContent='⚡ PHOTON';
+saturnFire.style.cssText='position:absolute;right:14px;bottom:90px;z-index:8;border:2px solid #6ceaff;border-radius:22px;padding:17px 14px;background:#113657e8;color:#fff;font:bold 15px system-ui;touch-action:manipulation';saturnPanel.appendChild(saturnFire);
+saturnFire.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const r=saturnRace;if(!r||r.photonCooldown>0)return;r.photonCooldown=.7;r.photonFlash=.2;
+ const v=saturnBikeView;let target=null,distance=Infinity;
+ if(v)for(const chunk of v.chunks){const d=chunk.userData.distance;if(chunk.visible&&d>5&&d<65&&Math.abs(chunk.userData.lane-r.lane)<.34&&d<distance){target=chunk;distance=d}}
+ if(target){target.visible=false;target.userData.hit=true;target.userData.distance=-20;r.blasts++;popup('⚡ ICE SHATTERED!')}
+ else{const obstacle=r.objects.find(o=>!o.hit&&!o.orb&&o.z>.25&&Math.abs(o.lane-r.lane)<.3);if(obstacle){obstacle.hit=true;obstacle.z=2;r.blasts++;popup('⚡ TARGET CLEARED!')}}
+});
 let saturnFreeRide=false;
 document.getElementById('saturnDirect').addEventListener('click',()=>{saturnFreeRide=true;document.getElementById('overlay').style.display='none';beginSaturnRace()});
 function beginSaturnRace(){
  if(saturnRace)return;
  paused=true;releaseHeldControls();saturnPanel.style.display='block';
- saturnRace={time:0,duration:50,continuous:!!saturnFreeRide,lane:0,target:0,health:3,orbs:0,objects:[],spawn:0,last:performance.now(),frame:0,ufo:null,ufoNext:7,stars:Array.from({length:95},()=>({x:Math.random(),y:Math.random()*.8,size:.5+Math.random()*1.7,phase:Math.random()*6.28}))};
+ saturnRace={time:0,duration:50,continuous:!!saturnFreeRide,lane:0,target:0,health:3,orbs:0,blasts:0,holes:[],photonCooldown:0,photonFlash:0,objects:[],spawn:0,last:performance.now(),frame:0,ufo:null,ufoNext:7,stars:Array.from({length:95},()=>({x:Math.random(),y:Math.random()*.8,size:.5+Math.random()*1.7,phase:Math.random()*6.28}))};
  const move=e=>{if(!saturnRace)return;const rect=saturnCanvas.getBoundingClientRect();saturnRace.target=T.MathUtils.clamp((e.clientX-rect.left-rect.width/2)/(rect.width*.28),-1,1)};
  saturnCanvas.onpointerdown=e=>{saturnCanvas.setPointerCapture(e.pointerId);move(e)};
  saturnCanvas.onpointermove=e=>{if(e.buttons)move(e)};
@@ -1927,7 +1935,7 @@ function beginSaturnRace(){
 }
 function drawSaturnRace(now){
  const r=saturnRace;if(!r)return;
- const dt=Math.min(.05,Math.max(0,(now-r.last)/1000));r.last=now;r.time+=dt;r.spawn-=dt;
+ const dt=Math.min(.05,Math.max(0,(now-r.last)/1000));r.last=now;r.time+=dt;r.spawn-=dt;r.photonCooldown=Math.max(0,r.photonCooldown-dt);r.photonFlash=Math.max(0,r.photonFlash-dt);saturnFire.style.opacity=r.photonCooldown>0?'.55':'1';
  const w=saturnCanvas.clientWidth,h=saturnCanvas.clientHeight,dpr=Math.min(devicePixelRatio||1,1.5);
  if(saturnCanvas.width!==Math.round(w*dpr)||saturnCanvas.height!==Math.round(h*dpr)){saturnCanvas.width=Math.round(w*dpr);saturnCanvas.height=Math.round(h*dpr)}
  const c=saturnCtx;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
@@ -1939,7 +1947,7 @@ function drawSaturnRace(now){
  for(let i=r.objects.length-1;i>=0;i--){
   const o=r.objects[i];o.z+=dt*.65;const t=Math.min(1,o.z),p=path(t),x=p.x+o.lane*p.width*.83,radius=(o.orb?7:10)*(.4+t*1.5);
   c.fillStyle=o.orb?'#ffe277':'#b7dff8';c.shadowColor=c.fillStyle;c.shadowBlur=o.orb?18:9;c.beginPath();c.arc(x,p.y,radius,0,Math.PI*2);c.fill();c.shadowBlur=0;
-  if(o.z>.88&&!o.hit&&Math.abs(o.lane-r.lane)<.22){o.hit=true;if(o.orb)r.orbs++;else r.health--}
+  if(o.z>.88&&!o.hit&&Math.abs(o.lane-r.lane)<.22){o.hit=true;if(o.orb)r.orbs++;else{r.health--;popup('🧊 ICE IMPACT!')}}
   if(o.z>1.15)r.objects.splice(i,1);
  }
  // A passing UFO telegraphs its laser lane before firing. Crossing the beam costs one shield.
@@ -1947,12 +1955,18 @@ function drawSaturnRace(now){
  if(r.ufo){const u=r.ufo;u.time+=dt;const shipX=w*(1.12-u.time*.19),shipY=h*.16+Math.sin(u.time*2)*8;
  c.save();c.translate(shipX,shipY);c.fillStyle='#86a6bc';c.beginPath();c.ellipse(0,0,26,9,0,0,Math.PI*2);c.fill();c.fillStyle='#5bf8e9';c.beginPath();c.ellipse(0,-6,12,9,0,Math.PI,Math.PI*2);c.fill();c.restore();
  if(u.time>=1&&u.time<3.6){const p=path(.94),tx=p.x+u.lane*p.width*.83;c.strokeStyle=u.time<2?'#ffde6688':'#ff435a';c.lineWidth=u.time<2?4:10;c.shadowColor='#ff435a';c.shadowBlur=u.time<2?4:22;c.beginPath();c.moveTo(shipX,shipY+8);c.lineTo(tx,p.y);c.stroke();c.shadowBlur=0;
- if(u.time>=2&&!u.hit&&Math.abs(r.lane-u.lane)<.27){u.hit=true;r.health--;popup('⚡ SATURN LASER HIT!')}}
+ if(u.time>=2&&!u.hit){u.hit=true;r.holes.push({lane:u.lane,z:.30,hit:false});popup('⚠ LASER CRATER AHEAD!')}}
  if(u.time>5)r.ufo=null;
  }
+ // Laser craters approach with the ring and cause damage when crossed.
+ for(let i=r.holes.length-1;i>=0;i--){const hole=r.holes[i];hole.z+=dt*.24;const t=Math.min(1,hole.z),p=path(t),x=p.x+hole.lane*p.width*.83;
+ c.save();c.translate(x,p.y);c.scale(1,.42);c.fillStyle='#02030b';c.strokeStyle='#ff526a';c.lineWidth=3+5*t;c.shadowColor='#ff3858';c.shadowBlur=12;c.beginPath();c.ellipse(0,0,13+33*t,12+25*t,0,0,Math.PI*2);c.fill();c.stroke();c.restore();
+ if(hole.z>.9&&!hole.hit&&Math.abs(hole.lane-r.lane)<.25){hole.hit=true;r.health--;popup('🕳️ RING CRATER — SHIELD LOST!')}
+ if(hole.z>1.16)r.holes.splice(i,1)}
+ if(r.photonFlash>0){c.strokeStyle='#78eaff';c.lineWidth=5;c.shadowColor='#5cdbff';c.shadowBlur=20;c.beginPath();c.moveTo(w*.5,h*.85);c.lineTo(path(.62).x+r.lane*path(.62).width*.83,path(.62).y);c.stroke();c.shadowBlur=0}
  drawSaturnBikeAvatar(r,dt);
  saturnPanel.querySelector('#saturnStats').textContent='🪐 SATURN RING RACE  •  '+Math.max(0,Math.ceil(r.duration-r.time))+'s  •  💎 '+r.orbs+'  •  ❤️ '+Math.max(0,r.health)+(r.ufo&&r.ufo.time>=1&&r.ufo.time<2?'  ⚠ LASER INCOMING':'');
- if(r.continuous){if(r.time>=r.duration){r.time=0;r.health=3;r.objects.length=0;r.orbs=0;r.ufo=null;r.ufoNext=7}if(r.health<=0){r.health=3;r.objects.length=0;r.ufo=null;r.ufoNext=r.time+7;popup('🪐 NEW LAP — SHIELDS RESTORED')}}else if(r.health<=0||r.time>=r.duration){endSaturnRace(r.health>0);return}
+ if(r.continuous){if(r.time>=r.duration){r.time=0;r.health=3;r.objects.length=0;r.holes.length=0;r.orbs=0;r.ufo=null;r.ufoNext=7}if(r.health<=0){r.health=3;r.objects.length=0;r.ufo=null;r.ufoNext=r.time+7;popup('🪐 NEW LAP — SHIELDS RESTORED')}}else if(r.health<=0||r.time>=r.duration){endSaturnRace(r.health>0);return}
  requestAnimationFrame(drawSaturnRace);
 }
 function alienRelease(subject){
