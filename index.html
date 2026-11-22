@@ -544,7 +544,7 @@ function buildMountainCave(mountain,radius,height,seed){
    const v=geometry.getAttribute('position');
    for(let i=0;i<v.count;i++){
     const y=v.getY(i),theta=Math.atan2(v.getZ(i),v.getX(i));
-    const z=(end+back)*.5+y,t=(-z)/totalLength;
+    const z=(end+back)*.5-y,t=(-z)/totalLength;
     // Match shared segment endpoints exactly; transition to a broad cavern mouth.
     const galleryDistance=Math.min(Math.abs(z-galleryStart),Math.abs(z-galleryEnd));
     const galleryBlend=Math.max(0,1-galleryDistance/22);
@@ -817,6 +817,9 @@ function updateCaveRide(dt){
   bike.rotation.z+=ride.wallBank*.18;
   const localFloorZ=bike.position.z-ride.tunnel.position.z;
   const lowerFloor=ride.floorY+ride.floorAt(localFloorZ);
+  // A continuous physical floor prevents the bike falling through at section boundaries.
+  // The gallery drop remains intentional; outside it, never allow penetration below the shelf.
+  const onGalleryDrop=localFloorZ<ride.galleryZ+46&&localFloorZ>ride.galleryZ-46;
   // Hovercraft flies within the tunnel's vertical envelope rather than following its floor.
   const caveFlying=alienHover&&alienUnlocked;
   if(caveFlying){
@@ -827,13 +830,14 @@ function updateCaveRide(dt){
   }
   // At the gallery precipice the rider becomes airborne and falls under gravity.
   // The lower shelf is broad enough to land on before the second tunnel.
-  const inGallery=localFloorZ<ride.galleryZ+46&&localFloorZ>ride.galleryZ-46;
+  const inGallery=onGalleryDrop;
   if(!caveFlying&&inGallery){
    if(!ride.wasInGallery){ride.descentVelocity=0;ride.wasInGallery=true;popup('🌋 GRAND CAVERN — WATCH THE DROP!')}
    ride.descentVelocity=Math.min(28,ride.descentVelocity+20*dt);
    bike.position.y=Math.max(ride.floorY-ride.caveDrop,bike.position.y-ride.descentVelocity*dt);
   }else if(!caveFlying){
-   bike.position.y=T.MathUtils.damp(bike.position.y,lowerFloor,7,dt);
+   bike.position.y=Math.max(lowerFloor,T.MathUtils.damp(bike.position.y,lowerFloor,7,dt));
+   ride.descentVelocity=0;
   }
   ride.hitCooldown=Math.max(0,(ride.hitCooldown||0)-dt);
   ride.lavaCooldown=Math.max(0,(ride.lavaCooldown||0)-dt);
@@ -849,7 +853,7 @@ function updateCaveRide(dt){
   for(const spike of ride.spikes){
    if(spike.userData.broken||spike.position.y>0)continue;
    if(Math.abs(spike.position.z-caveZ)>12)continue;
-   const world=new T.Vector3();spike.getWorldPosition(world);
+   const world=spike.userData.worldPosition||(spike.userData.worldPosition=new T.Vector3());spike.getWorldPosition(world);
    const distance=Math.abs(world.z-bike.position.z);
    // Use the narrow physical base of each floor cone, not an oversized 3D hit box.
    // A near miss at the side should be safe, especially in first-person view.
