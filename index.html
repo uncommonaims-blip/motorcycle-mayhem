@@ -1862,7 +1862,9 @@ function ensureSaturnBikeView(){
   miniRenderer.setPixelRatio(Math.min(devicePixelRatio||1,1.25));
   // Ring surface: concentric, curved strips with uneven ice-and-dust colors.
   const ringGroup=new T.Group();miniScene.add(ringGroup);
-  // Polar coordinates keep the track concentric to Saturn instead of cutting into it.\n  const orbitalRadius=111,orbitalCenterX=-111;\n  const orbit=distance=>{const a=-distance/orbitalRadius;return {x:orbitalCenterX+orbitalRadius*Math.cos(a),z:orbitalRadius*Math.sin(a),angle:a}};
+  // Polar coordinates keep the track concentric to Saturn instead of cutting into it.
+  const orbitalRadius=111,orbitalCenterX=-111;
+  const orbit=distance=>{const a=-distance/orbitalRadius;return {x:orbitalCenterX+orbitalRadius*Math.cos(a),z:orbitalRadius*Math.sin(a),angle:a}};
   const shades=[0xcab69c,0xa59aa2,0xe2c9a0,0x82798a,0xb4a7a0,0x6c6b81,0xe9d4b1];
   for(let j=-19;j<=19;j++){
    const vertices=[],indices=[],steps=110;
@@ -1911,7 +1913,9 @@ function endSaturnRace(completed){
  popup((completed?'🪐 SATURN RING FINISH! ':'🛸 BACK TO EARTH! ')+'+'+reward+' CREDITS');
 }
 saturnPanel.querySelector('#saturnExit').onclick=()=>endSaturnRace(false);
-let saturnFreeRide=false;\ndocument.getElementById('saturnDirect').addEventListener('click',()=>{saturnFreeRide=true;document.getElementById('overlay').style.display='none';beginSaturnRace()});\nfunction beginSaturnRace(){
+let saturnFreeRide=false;
+document.getElementById('saturnDirect').addEventListener('click',()=>{saturnFreeRide=true;document.getElementById('overlay').style.display='none';beginSaturnRace()});
+function beginSaturnRace(){
  if(saturnRace)return;
  paused=true;releaseHeldControls();saturnPanel.style.display='block';
  saturnRace={time:0,duration:50,continuous:!!saturnFreeRide,lane:0,target:0,health:3,orbs:0,objects:[],spawn:0,last:performance.now(),frame:0,ufo:null,ufoNext:7,stars:Array.from({length:95},()=>({x:Math.random(),y:Math.random()*.8,size:.5+Math.random()*1.7,phase:Math.random()*6.28}))};
